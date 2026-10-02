@@ -760,17 +760,27 @@ export async function getEventAttendees({ eventUrl, start = 0, count = 25 }) {
 }
 
 export async function getConnections({ start = 0, count = 25 } = {}) {
-  const raw = await voyagerFetch(
-    `${ENDPOINTS.connections}?${qs({
+  const path = `${ENDPOINTS.connections}?${qs({
       decorationId: ENDPOINTS.decorations.connectionList,
       q: 'search',
       sortType: 'RECENTLY_ADDED',
       start,
       count,
-    })}`,
-  );
-  const { profiles, total } = normalizeConnections(raw);
-  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+  })}`;
+  const raw = await voyagerFetch(path);
+  const { profiles, total, diagnostics } = normalizeConnections(raw);
+  const page = collection(raw);
+  const pageSize = Array.isArray(page?.['*elements'])
+    ? page['*elements'].length
+    : Array.isArray(page?.elements)
+      ? page.elements.length
+      : 0;
+  if (globalThis.__LITK_DEBUG_CONNECTIONS__ === true) {
+    console.debug('[LinkedIn Toolkit] connections request', { path });
+    console.debug('[LinkedIn Toolkit] connections raw response', raw);
+    console.debug('[LinkedIn Toolkit] connections diagnostics', diagnostics);
+  }
+  return { profiles, total, nextStart: pageSize ? start + pageSize : undefined, diagnostics };
 }
 
 /**

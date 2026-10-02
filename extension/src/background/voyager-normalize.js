@@ -25,6 +25,7 @@
  */
 
 import {
+  collection,
   elements,
   entitiesOfType,
   field,
@@ -144,7 +145,11 @@ export function splitFullName(fullName) {
 
 /** Shape any partially-known person into the contract `Profile`. */
 export function toProfile(fields = {}, source = 'profile') {
-  const publicId = fields.publicId || fields.publicIdentifier || publicIdFromUrl(fields.url);
+  const urn = fields.urn || fields.entityUrn || fields.objectUrn || '';
+  const profileUrn = fsdProfileUrnIn(urn);
+  const opaquePublicId = profileUrn ? profileUrn.split(':').pop() : '';
+  const publicId =
+    fields.publicId || fields.publicIdentifier || publicIdFromUrl(fields.url) || opaquePublicId;
   const derived =
     !fields.firstName && !fields.lastName && fields.fullName
       ? splitFullName(fields.fullName)
@@ -153,7 +158,7 @@ export function toProfile(fields = {}, source = 'profile') {
   const lastName = fields.lastName || derived.lastName || '';
   const profile = {
     publicId,
-    urn: fields.urn || fields.entityUrn || fields.objectUrn || '',
+    urn,
     url: fields.url || profileUrl(publicId),
     firstName,
     lastName,
@@ -646,25 +651,52 @@ export function normalizeRecruiterSearch(raw) {
  */
 export function normalizeConnections(raw) {
   const idx = index(raw);
+  const page = collection(raw);
+  const rawElements = Array.isArray(page?.['*elements'])
+    ? page['*elements']
+    : Array.isArray(page?.elements)
+      ? page.elements
+      : [];
+  const connections = elements(raw, idx);
   const profiles = [];
+  let missingMemberProfileCount = 0;
+  let missingPublicIdCount = 0;
 
-  for (const connection of elements(raw, idx)) {
+  for (const connection of connections) {
     const person =
       field(connection, 'connectedMemberResolutionResult', idx) ||
       resolve(connection.connectedMember, idx) ||
       (connection.publicIdentifier ? connection : null);
-    if (!person) continue;
+    if (!person) {
+      missingMemberProfileCount += 1;
+      continue;
+    }
 
     const profile = toProfile(
       { ...dashProfileFields(person, idx), connectionDegree: 1 },
       'connections',
     );
-    if (!profile.publicId) continue;
+    if (!profile.publicId) {
+      missingPublicIdCount += 1;
+      continue;
+    }
     if (connection.createdAt) profile.connectedAt = connection.createdAt;
     profiles.push(profile);
   }
 
-  return { profiles, total: total(raw) };
+  return {
+    profiles,
+    total: total(raw),
+    diagnostics: {
+      rawElementCount: rawElements.length,
+      resolvedConnectionCount: connections.length,
+      normalizedProfileCount: profiles.length,
+      unresolvedConnectionReferenceCount: Math.max(0, rawElements.length - connections.length),
+      missingMemberProfileCount,
+      missingPublicIdCount,
+      includedEntityCount: Array.isArray(raw?.included) ? raw.included.length : 0,
+    },
+  };
 }
 
 const PROFILE_WRAPPERS = [

@@ -8,12 +8,12 @@
  */
 
 import { ACTIONS, ERROR, EVENTS, EngineError } from '../lib/actions.js';
-import { register } from './engine.js';
 import { allActions, getStoredProfile, logAction, putProfile, putProfiles } from '../lib/storage.js';
+import { register } from './engine.js';
 import { emit } from './events.js';
 import * as quota from './quota.js';
-import * as voyager from './voyager.js';
 import { meteredConnectionStatus, meteredProfile } from './visits.js';
+import * as voyager from './voyager.js';
 
 /* ================================================================== */
 /*  Hooks                                                             */
@@ -209,7 +209,12 @@ register(ACTIONS.EVENT_ATTENDEES, async ({ eventUrl, start = 0, count = 25 }) =>
 register(ACTIONS.NETWORK_CONNECTIONS, async ({ start = 0, count = 25 } = {}) => {
   const out = await meteredAudience(count, () => voyager.getConnections({ start, count }));
   await store(out.profiles);
-  return { profiles: out.profiles, nextStart: out.nextStart };
+  return {
+    profiles: out.profiles,
+    total: out.total,
+    nextStart: out.nextStart,
+    diagnostics: out.diagnostics,
+  };
 });
 
 register(ACTIONS.NETWORK_FOLLOWERS, async ({ start = 0, count = 25 } = {}) => {

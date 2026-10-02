@@ -1,37 +1,37 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import * as v from '../../src/background/voyager.js';
 import { ERROR } from '../../src/lib/actions.js';
 import { routeBackground, seedSession, status, stubFetch } from '../helpers/net.js';
 
-import profileView from '../fixtures/voyager/profileView.json';
-import profileFull from '../fixtures/voyager/profileFull.json';
-import profileEducation from '../fixtures/voyager/profileEducation.json';
-import profileSkills from '../fixtures/voyager/profileSkills.json';
-import profilePositions from '../fixtures/voyager/profilePositions.json';
-import searchClusters from '../fixtures/voyager/searchClusters.json';
+import comments from '../fixtures/voyager/comments.json';
 import companyEmployees from '../fixtures/voyager/companyEmployees.json';
 import companyRest from '../fixtures/voyager/companyRest.json';
 import companyThin from '../fixtures/voyager/companyThin.json';
-import reactions from '../fixtures/voyager/reactions.json';
-import comments from '../fixtures/voyager/comments.json';
 import connections from '../fixtures/voyager/connections.json';
-import followers from '../fixtures/voyager/followers.json';
-import following from '../fixtures/voyager/following.json';
-import followersFollowing from '../fixtures/voyager/followersFollowing.json';
-import groupMembers from '../fixtures/voyager/groupMembers.json';
-import eventAttendees from '../fixtures/voyager/eventAttendees.json';
+import conversationEvents from '../fixtures/voyager/conversationEvents.json';
 import conversations from '../fixtures/voyager/conversations.json';
 import conversationsRef from '../fixtures/voyager/conversationsRef.json';
-import conversationEvents from '../fixtures/voyager/conversationEvents.json';
-import salesNavSearch from '../fixtures/voyager/salesNavSearch.json';
-import recruiterSearch from '../fixtures/voyager/recruiterSearch.json';
-import memberPosts from '../fixtures/voyager/memberPosts.json';
-import mutualConnections from '../fixtures/voyager/mutualConnections.json';
-import sentInvitations from '../fixtures/voyager/sentInvitations.json';
-import sentInvitationsGraphql from '../fixtures/voyager/sentInvitationsGraphql.json';
+import eventAttendees from '../fixtures/voyager/eventAttendees.json';
+import followers from '../fixtures/voyager/followers.json';
+import followersFollowing from '../fixtures/voyager/followersFollowing.json';
+import following from '../fixtures/voyager/following.json';
+import groupMembers from '../fixtures/voyager/groupMembers.json';
 import inviteCreated from '../fixtures/voyager/inviteCreated.json';
 import inviteDuplicate from '../fixtures/voyager/inviteDuplicate.json';
 import inviteQuotaExhausted from '../fixtures/voyager/inviteQuotaExhausted.json';
+import memberPosts from '../fixtures/voyager/memberPosts.json';
+import mutualConnections from '../fixtures/voyager/mutualConnections.json';
+import profileEducation from '../fixtures/voyager/profileEducation.json';
+import profileFull from '../fixtures/voyager/profileFull.json';
+import profilePositions from '../fixtures/voyager/profilePositions.json';
+import profileSkills from '../fixtures/voyager/profileSkills.json';
+import profileView from '../fixtures/voyager/profileView.json';
+import reactions from '../fixtures/voyager/reactions.json';
+import recruiterSearch from '../fixtures/voyager/recruiterSearch.json';
+import salesNavSearch from '../fixtures/voyager/salesNavSearch.json';
+import searchClusters from '../fixtures/voyager/searchClusters.json';
+import sentInvitations from '../fixtures/voyager/sentInvitations.json';
+import sentInvitationsGraphql from '../fixtures/voyager/sentInvitationsGraphql.json';
 
 let net;
 
@@ -540,12 +540,31 @@ describe('post engagers', () => {
 describe('audiences', () => {
   it('getConnections reads the dash collection and states the degree', async () => {
     net.push(connections);
-    const out = await v.getConnections({ start: 0, count: 10 });
+    const out = await v.getConnections({ start: 0, count: 100 });
     expect(urlOf(0)).toContain(v.ENDPOINTS.connections);
     expect(urlOf(0)).toContain(v.ENDPOINTS.decorations.connectionList);
+    expect(out.nextStart).toBe(10);
+    expect(out.diagnostics).toMatchObject({
+      rawElementCount: 10,
+      resolvedConnectionCount: 10,
+      normalizedProfileCount: 10,
+      unresolvedConnectionReferenceCount: 0,
+      missingMemberProfileCount: 0,
+      missingPublicIdCount: 0,
+    });
     expect(out.profiles[0]).toMatchObject({ connectionDegree: 1 });
     expect(out.profiles.map((p) => p.publicId)).toContain('adalovelace');
     expect(out.profiles[0].photoUrl).toContain('media.licdn.com');
+  });
+
+  it('keeps an opaque profile id when a connection has no vanity id', async () => {
+    const raw = structuredClone(connections);
+    delete raw.included.find((entity) => entity.publicIdentifier === 'adalovelace').publicIdentifier;
+    net.push(raw);
+    const out = await v.getConnections({ start: 0, count: 10 });
+    expect(out.profiles.map((profile) => profile.publicId)).toContain(
+      'ACoAAA0102FIXTUREPROFILE0102xxxx',
+    );
   });
 
   it('getFollowers reads the curation-hub search', async () => {

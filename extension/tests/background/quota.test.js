@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ERROR, HARD_CAPS } from '../../src/lib/actions.js';
-import { setConfig } from '../../src/lib/config.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as events from '../../src/background/events.js';
 import * as quota from '../../src/background/quota.js';
+import { ERROR, HARD_CAPS } from '../../src/lib/actions.js';
+import { setConfig } from '../../src/lib/config.js';
 
 /** A Wednesday at 11:00 local time — inside the default business window. */
 const WEDNESDAY_11AM = new Date(2026, 8, 9, 11, 0, 0);
@@ -35,27 +35,11 @@ async function caught(fn) {
   }
 }
 
-describe('presets', () => {
-  it('matches the brief exactly', () => {
-    expect(quota.PRESETS).toEqual({
-      free: { invite: 20, message: 40, visit: 80, search: 300 },
-      premium: { invite: 25, message: 60, visit: 120, search: 500 },
-      salesnav: { invite: 30, message: 80, visit: 200, search: 800 },
-      recruiter: { invite: 40, message: 100, visit: 300, search: 1000 },
-    });
-  });
-
-  it('caps by preset when the preset is lower than the config', async () => {
-    await setConfig({ accountPreset: 'free', dailyInviteCap: 100 });
-    expect(await quota.dailyCapFor('invite')).toBe(20);
-
-    await setConfig({ accountPreset: 'salesnav' });
-    expect(await quota.dailyCapFor('invite')).toBe(30);
-  });
-
-  it('lets config win when it is lower than the preset', async () => {
-    await setConfig({ accountPreset: 'recruiter', dailyInviteCap: 5 });
-    expect(await quota.dailyCapFor('invite')).toBe(5);
+describe('configured caps', () => {
+  it('honors caps edited after choosing an account preset', async () => {
+    await setConfig({ accountPreset: 'free', dailyVisitCap: 300, dailySearchCap: 900 });
+    expect(await quota.dailyCapFor('visit')).toBe(300);
+    expect(await quota.dailyCapFor('search')).toBe(900);
   });
 
   it('never exceeds the hard caps whatever the preset or config asks for', async () => {
@@ -81,7 +65,7 @@ describe('warm-up', () => {
       warmup: { enabled: true, startedAt: Date.now(), days: 14 },
     });
     expect(quota.warmupFactor(0)).toBeCloseTo(0.2, 5);
-    expect(await quota.dailyCapFor('invite')).toBe(8); // 40 × 0.2
+    expect(await quota.dailyCapFor('invite')).toBe(20); // 100 × 0.2
   });
 
   it('reaches full strength at day 14 and stays there', () => {
@@ -92,7 +76,7 @@ describe('warm-up', () => {
 
   it('is inert when disabled', async () => {
     await setConfig({ accountPreset: 'free', warmup: { enabled: false } });
-    expect(await quota.dailyCapFor('invite')).toBe(20);
+    expect(await quota.dailyCapFor('invite')).toBe(25);
   });
 });
 
@@ -104,7 +88,7 @@ describe('check / record', () => {
     const snap = await quota.snapshot('invite');
     expect(snap.dailyUsed).toBe(1);
     expect(snap.hourlyUsed).toBe(1);
-    expect(snap.dailyCap).toBe(20);
+    expect(snap.dailyCap).toBe(25);
   });
 
   it('throws QUOTA_EXCEEDED at the daily ceiling and emits quota_hit', async () => {

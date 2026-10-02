@@ -1,16 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ACTIONS, ERROR } from '../../src/lib/actions.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handle } from '../../src/background/engine.js';
-import { setConfig } from '../../src/lib/config.js';
 import * as events from '../../src/background/events.js';
-import * as quota from '../../src/background/quota.js';
-import * as queue from '../../src/background/queue.js';
-import * as storage from '../../src/lib/storage.js';
 import * as outreach from '../../src/background/outreach.js';
+import * as queue from '../../src/background/queue.js';
+import * as quota from '../../src/background/quota.js';
+import { ACTIONS, ERROR } from '../../src/lib/actions.js';
+import { setConfig } from '../../src/lib/config.js';
+import * as storage from '../../src/lib/storage.js';
 import { routeBackground, seedSession, status, stubFetch } from '../helpers/net.js';
 
-import profileView from '../fixtures/voyager/profileView.json';
 import inviteCreated from '../fixtures/voyager/inviteCreated.json';
+import profileView from '../fixtures/voyager/profileView.json';
 
 let net;
 let seen;
@@ -140,7 +140,7 @@ describe('the send path', () => {
   });
 
   it('refuses when the quota is spent, without calling LinkedIn', async () => {
-    await setConfig({ accountPreset: 'free' });
+    await setConfig({ accountPreset: 'free', dailyInviteCap: 20 });
     await quota.record('invite', 20);
     const res = await invite('popup');
     expect(res.ok).toBe(false);
@@ -151,7 +151,7 @@ describe('the send path', () => {
   it('reports the RateLimit on the envelope', async () => {
     queueInvite();
     const res = await invite('popup');
-    expect(res.rateLimit).toMatchObject({ dailyUsed: 1, dailyCap: 20 });
+    expect(res.rateLimit).toMatchObject({ dailyUsed: 1, dailyCap: 25 });
   });
 
   it('follow, like and view send directly whatever the origin', async () => {

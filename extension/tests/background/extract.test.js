@@ -1,22 +1,22 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ACTIONS, ERROR } from '../../src/lib/actions.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handle } from '../../src/background/engine.js';
-import { setConfig } from '../../src/lib/config.js';
-import * as quota from '../../src/background/quota.js';
-import * as storage from '../../src/lib/storage.js';
 import '../../src/background/extract.js';
+import * as quota from '../../src/background/quota.js';
+import { ACTIONS, ERROR } from '../../src/lib/actions.js';
+import { setConfig } from '../../src/lib/config.js';
+import * as storage from '../../src/lib/storage.js';
 import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
-import profileView from '../fixtures/voyager/profileView.json';
-import searchClusters from '../fixtures/voyager/searchClusters.json';
 import company from '../fixtures/voyager/company.json';
 import companyEmployees from '../fixtures/voyager/companyEmployees.json';
-import reactions from '../fixtures/voyager/reactions.json';
 import connections from '../fixtures/voyager/connections.json';
+import eventAttendees from '../fixtures/voyager/eventAttendees.json';
 import followers from '../fixtures/voyager/followers.json';
 import groupMembers from '../fixtures/voyager/groupMembers.json';
-import eventAttendees from '../fixtures/voyager/eventAttendees.json';
 import inviteAccepted from '../fixtures/voyager/inviteAccepted.json';
+import profileView from '../fixtures/voyager/profileView.json';
+import reactions from '../fixtures/voyager/reactions.json';
+import searchClusters from '../fixtures/voyager/searchClusters.json';
 import sentInvitations from '../fixtures/voyager/sentInvitations.json';
 
 let net;
@@ -73,7 +73,7 @@ describe('search.people', () => {
   });
 
   it('refuses when the daily search quota is spent', async () => {
-    await setConfig({ accountPreset: 'free' });
+    await setConfig({ accountPreset: 'free', dailySearchCap: 300 });
     await quota.record('search', 300);
     const res = await handle(ACTIONS.SEARCH_PEOPLE, { keywords: 'analyst' });
     expect(res.ok).toBe(false);
@@ -212,9 +212,13 @@ describe('audiences', () => {
     ).toBe('fatimafarouk');
 
     net.push(connections);
-    expect(
-      (await handle(ACTIONS.NETWORK_CONNECTIONS, {})).data.profiles.map((p) => p.publicId),
-    ).toContain('adalovelace');
+    const connectionResult = await handle(ACTIONS.NETWORK_CONNECTIONS, {});
+    expect(connectionResult.data.profiles.map((p) => p.publicId)).toContain('adalovelace');
+    expect(connectionResult.data.total).toBeUndefined();
+    expect(connectionResult.data.diagnostics).toMatchObject({
+      rawElementCount: 10,
+      normalizedProfileCount: 10,
+    });
 
     net.push(followers);
     expect((await handle(ACTIONS.NETWORK_FOLLOWERS, {})).data.profiles[0].publicId).toBe(
@@ -653,7 +657,7 @@ describe('audience reads are metered against the search bucket', () => {
   });
 
   it('refuses an audience read when the search quota is spent', async () => {
-    await setConfig({ accountPreset: 'free' });
+    await setConfig({ accountPreset: 'free', dailySearchCap: 300 });
     await quota.record('search', 300);
     const res = await handle(ACTIONS.NETWORK_CONNECTIONS, {});
     expect(res.error.code).toBe(ERROR.QUOTA_EXCEEDED);

@@ -6,11 +6,11 @@
  * results) do the same against the `search` bucket.
  *
  * Four buckets only, exactly as the contract says: invite, message, visit,
- * search. The effective daily cap is the *lowest* of the user's config, the
- * account preset and the hard cap, then scaled by the warm-up ramp.
+ * search. The effective daily cap is the user's configured cap, bounded by
+ * the hard cap, then scaled by the warm-up ramp.
  */
 
-import { ERROR, EngineError, EVENTS, HARD_CAPS } from '../lib/actions.js';
+import { ERROR, EVENTS, EngineError, HARD_CAPS } from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
 import { K, get, set, withKeyLock } from '../lib/storage.js';
 import { emit } from './events.js';
@@ -23,14 +23,6 @@ export const KINDS = Object.freeze(['invite', 'message', 'visit', 'search']);
 
 /** Buckets that represent an action LinkedIn attributes to a human. */
 const WRITE_KINDS = new Set(['invite', 'message', 'visit']);
-
-/** Per-day ceilings by account type. Always still under HARD_CAPS. */
-export const PRESETS = Object.freeze({
-  free: { invite: 20, message: 40, visit: 80, search: 300 },
-  premium: { invite: 25, message: 60, visit: 120, search: 500 },
-  salesnav: { invite: 30, message: 80, visit: 200, search: 800 },
-  recruiter: { invite: 40, message: 100, visit: 300, search: 1000 },
-});
 
 const CONFIG_CAP_KEY = {
   invite: 'dailyInviteCap',
@@ -155,11 +147,10 @@ export function hourlyCapFor(kind, config, dailyCap) {
   return WRITE_KINDS.has(kind) ? config.hourlyCap : dailyCap;
 }
 
-/** Effective daily cap for a bucket: min(config, preset, hard) × warm-up. */
+/** Effective daily cap for a bucket: min(config, hard) × warm-up. */
 export async function dailyCapFor(kind, config) {
   const cfg = config || (await getConfig());
-  const preset = PRESETS[cfg.accountPreset] || PRESETS.free;
-  const base = Math.min(cfg[CONFIG_CAP_KEY[kind]], preset[kind], HARD_CAP_FOR[kind]);
+  const base = Math.min(cfg[CONFIG_CAP_KEY[kind]], HARD_CAP_FOR[kind]);
   if (!cfg.warmup || !cfg.warmup.enabled) return base;
   const factor = warmupFactor(warmupDayIndex(cfg), cfg.warmup.days);
   return Math.max(1, Math.floor(base * factor));

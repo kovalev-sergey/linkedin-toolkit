@@ -1,22 +1,22 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ACTIONS, ERROR, HARD_CAPS } from '../../src/lib/actions.js';
-import { handle } from '../../src/background/engine.js';
-import { getConfig } from '../../src/lib/config.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as bridge from '../../src/background/bridge.js';
+import { handle } from '../../src/background/engine.js';
 import * as inbox from '../../src/background/inbox.js';
+import '../../src/background/lists.js';
+import '../../src/background/outreach.js';
 import * as quota from '../../src/background/quota.js';
-import * as storage from '../../src/lib/storage.js';
 import '../../src/background/status.js';
 import '../../src/background/sync.js';
-import '../../src/background/outreach.js';
-import '../../src/background/lists.js';
+import { ACTIONS, ERROR, HARD_CAPS } from '../../src/lib/actions.js';
+import { getConfig } from '../../src/lib/config.js';
+import * as storage from '../../src/lib/storage.js';
 import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
+import companyRest from '../fixtures/voyager/companyRest.json';
+import connections from '../fixtures/voyager/connections.json';
 import conversations from '../fixtures/voyager/conversations.json';
 import profileView from '../fixtures/voyager/profileView.json';
 import searchClusters from '../fixtures/voyager/searchClusters.json';
-import companyRest from '../fixtures/voyager/companyRest.json';
-import connections from '../fixtures/voyager/connections.json';
 
 const NOW = new Date(2026, 8, 9, 11, 0, 0);
 
@@ -64,7 +64,7 @@ describe('status.get', () => {
     expect(s.autopilot).toBe(false);
     expect(typeof s.businessHours).toBe('boolean');
     expect(Object.keys(s.quotas).sort()).toEqual(['invite', 'message', 'search', 'visit']);
-    expect(s.quotas.invite).toMatchObject({ dailyUsed: 0, dailyCap: 20 });
+    expect(s.quotas.invite).toMatchObject({ dailyUsed: 0, dailyCap: 25 });
     expect(s.queue).toEqual({ pending: 0 });
     expect(s.campaigns).toEqual({ active: 0, paused: 0 });
     expect(s.bridge).toEqual({ enabled: false, connected: false, port: 47829 });

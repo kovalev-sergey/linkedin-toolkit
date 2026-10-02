@@ -98,6 +98,8 @@ type Config = { minDelayMs; maxDelayMs; hourlyCap; dailyInviteCap; dailyMessageC
 
 Hard ceilings are clamped in `config.set` regardless of the value requested. `config.set` also accepts the command flag `clearChallenge: true`, which clears a detected security challenge and is never persisted.
 
+The daily caps are user-controlled safety settings bounded only by those hard ceilings. `accountPreset` supplies suggested pacing and cap values in the settings form; it does not lower caps the user has edited afterward.
+
 Safety settings belong to the human. From any origin but `popup`, `config.set` silently drops `autopilot`, `clearChallenge`, `bridge`, `ai`, `enrichment`, `accountPreset`, `warmup`, `businessHoursOnly`, `businessStart`, `businessEnd`, `weekdaysOnly`, `minDelayMs`, `maxDelayMs`, `hourlyCap`, `dailyInviteCap`, `dailyMessageCap`, `dailyVisitCap` and `dailySearchCap`, and names them in `ignoredKeys` on the result — leaving `webhookUrl` as the one key an agent may write.
 
 Every profile fetch — `profile.get`, each row of `profile.export`, a connection check, the urn resolution before a message — is metered against the `visit` bucket and paced, because that is what LinkedIn records as a profile visit. One visit is one read of the profile itself; the profile-section reads that follow it (experience always, education and skills on `full: true`) are page-component queries rather than profile views and are not metered.

@@ -1,24 +1,24 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ACTIONS } from '../../src/lib/actions.js';
-import { handle } from '../../src/background/engine.js';
-import { setConfig } from '../../src/lib/config.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as campaigns from '../../src/background/campaigns.js';
+import { handle } from '../../src/background/engine.js';
 import * as events from '../../src/background/events.js';
 import * as inbox from '../../src/background/inbox.js';
+import '../../src/background/lists.js';
+import '../../src/background/outreach.js';
 import * as queue from '../../src/background/queue.js';
 import * as quota from '../../src/background/quota.js';
+import { ACTIONS } from '../../src/lib/actions.js';
+import { setConfig } from '../../src/lib/config.js';
 import * as storage from '../../src/lib/storage.js';
-import '../../src/background/outreach.js';
-import '../../src/background/lists.js';
 import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
-import profileView from '../fixtures/voyager/profileView.json';
+import connectThenMessage from '../../sequences/connect-then-message.json';
+import warmConnect from '../../sequences/warm-connect.json';
+import conversationEvents from '../fixtures/voyager/conversationEvents.json';
+import conversations from '../fixtures/voyager/conversations.json';
 import inviteAccepted from '../fixtures/voyager/inviteAccepted.json';
 import inviteCreated from '../fixtures/voyager/inviteCreated.json';
-import conversations from '../fixtures/voyager/conversations.json';
-import conversationEvents from '../fixtures/voyager/conversationEvents.json';
-import warmConnect from '../../sequences/warm-connect.json';
-import connectThenMessage from '../../sequences/connect-then-message.json';
+import profileView from '../fixtures/voyager/profileView.json';
 
 const START = new Date(2026, 8, 9, 11, 0, 0);
 const HOUR = 3600000;
@@ -585,7 +585,7 @@ describe('copilot and quotas', () => {
   });
 
   it('halts the tick when the quota is spent', async () => {
-    await setConfig({ accountPreset: 'free' });
+    await setConfig({ accountPreset: 'free', dailyInviteCap: 20 });
     await quota.record('invite', 20);
     const c = await makeCampaign([{ type: 'invite', note: 'Hi' }]);
     const res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
