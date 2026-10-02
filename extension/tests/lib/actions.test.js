@@ -1,21 +1,21 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { describe, it, expect } from 'vitest';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 
 import {
   ACTIONS,
+  clampConfig,
+  DEFAULT_CONFIG,
+  EngineError,
+  err,
   ERROR,
   EVENTS,
   HARD_CAPS,
-  DEFAULT_CONFIG,
-  INVITE_NOTE_MAX,
   INVITE_NOTE_FIX,
-  validateParams,
-  clampConfig,
+  INVITE_NOTE_MAX,
   ok,
-  err,
-  EngineError,
+  validateParams,
 } from '../../src/lib/actions.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -111,6 +111,7 @@ describe('EVENTS', () => {
     'quota_hit',
     'challenge_detected',
     'queue_item_added',
+    'queue_item_blocked',
     'queue_item_sent',
     'campaign_note_truncated',
     'research_progress',
@@ -242,10 +243,29 @@ describe('validateParams', () => {
   });
 
   it('accepts every status the queue can actually be in', () => {
-    for (const status of ['pending', 'approved', 'rejected', 'sent', 'failed']) {
+    for (const status of ['pending', 'approved', 'rejected', 'sent']) {
       expect(validateParams('queue.list', { status }).ok, status).toBe(true);
     }
     expect(validateParams('queue.list', { status: 'gone' }).ok).toBe(false);
+  });
+
+  it('validates message attachment bytes', () => {
+    const attachment = {
+      name: 'CV.pdf',
+      mimeType: 'application/pdf',
+      byteSize: 3,
+      dataBase64: 'YWJj',
+    };
+    expect(validateParams('outreach.message', { publicId: 'dom', body: 'Hi', attachment }).ok).toBe(
+      true,
+    );
+    expect(
+      validateParams('outreach.message', {
+        publicId: 'dom',
+        body: 'Hi',
+        attachment: { ...attachment, byteSize: 4 },
+      }).ok,
+    ).toBe(false);
   });
 
   it('has a spec for every action in ACTIONS', () => {

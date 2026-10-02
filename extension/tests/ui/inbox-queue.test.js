@@ -1,19 +1,19 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
+import { ACTIONS } from '../../src/lib/actions.js';
 import * as inbox from '../../src/popup/tabs/inbox.js';
 import * as queue from '../../src/popup/tabs/queue.js';
-import { ACTIONS } from '../../src/lib/actions.js';
 import { UI_KEYS } from '../../src/ui/api.js';
 import {
-  stubEngine,
   flush,
   mountPoint,
-  threadFixture,
-  queueItemFixture,
   profileFixture,
+  queueItemFixture,
+  stubEngine,
+  threadFixture,
 } from './helpers.js';
 
 const clickIn = (host, text) => {
@@ -109,6 +109,7 @@ describe('Inbox tab', () => {
     expect(engine.paramsFor(ACTIONS.OUTREACH_MESSAGE)).toEqual({
       publicId: 'ada',
       body: 'Happy to talk Thursday.',
+      threadId: 't1',
     });
     expect(host.textContent).toContain('Queued for your approval');
   });
@@ -186,6 +187,66 @@ describe('Queue tab', () => {
     expect(host.textContent).toContain('campaign');
     expect(host.querySelector('[data-item="q1"]').value).toBe('Hi Ada');
     expect(host.querySelector('[data-item="q2"]').value).toBe('Hello Grace');
+  });
+
+  it('shows a send limit error while keeping the item actionable', async () => {
+    queueEngine([
+      queueItemFixture({
+        result: {
+          error: {
+            code: 'QUOTA_EXCEEDED',
+            message: 'Hourly cap reached for visit (50/hour).',
+          },
+        },
+      }),
+    ]);
+    const host = mountPoint();
+
+    await queue.mount(host);
+
+    expect(host.textContent).toContain('QUOTA_EXCEEDED');
+    expect(host.textContent).toContain('Hourly cap reached for visit (50/hour).');
+    expect(host.querySelector('[data-queue="q1"] button').textContent).toContain('Approve');
+  });
+
+  it('keeps an approved item visible while sending and restores its pending error', async () => {
+    const draft = queueItemFixture();
+    const blocked = {
+      ...draft,
+      result: {
+        error: {
+          code: 'QUOTA_EXCEEDED',
+          message: 'Hourly cap reached for visit (50/hour).',
+        },
+      },
+    };
+    let phase = 'pending';
+    const engine = stubEngine({
+      [ACTIONS.QUEUE_LIST]: (params) => {
+        if (phase === 'approved') {
+          return { items: params.status === 'approved' ? [{ ...draft, status: 'approved' }] : [] };
+        }
+        return { items: params.status === 'pending' ? [blocked] : [] };
+      },
+      [ACTIONS.QUEUE_APPROVE]: () => {
+        phase = 'approved';
+        return { approved: 1 };
+      },
+    });
+    const host = mountPoint();
+
+    await queue.mount(host);
+    clickIn(host.querySelector('[data-queue="q1"]'), 'Approve');
+    await flush(10);
+
+    expect(host.querySelector('[data-queue="q1"]')).toBeTruthy();
+    phase = 'pending';
+    clickIn(host, 'Refresh');
+    await flush(10);
+
+    expect(engine.paramsFor(ACTIONS.QUEUE_LIST)).toEqual({ status: 'approved' });
+    expect(host.textContent).toContain('Hourly cap reached for visit (50/hour).');
+    expect(host.querySelector('[data-queue="q1"] button').textContent).toContain('Approve');
   });
 
   it('approves an item with the edited body', async () => {

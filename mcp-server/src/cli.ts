@@ -7,11 +7,11 @@
  * HTTP, so the CLI and an agent see exactly the same data through exactly the
  * same code path.
  */
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { Command, CommanderError } from 'commander';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { basename, extname, join, resolve } from 'node:path';
 import {
   clearRuntime,
   generateToken,
@@ -24,11 +24,15 @@ import {
   type ServerConfig,
 } from './config.js';
 import { ORIGIN_HEADER } from './contract.js';
+import { TABLES } from './db.js';
 import { doctorReport } from './endpoints.js';
+import { createDemoHandlers, FAKE_BANNER } from './fake-data.js';
+import { FakeExtensionClient } from './fake-extension.js';
+import { HttpServer } from './http.js';
 import {
-  CLIENTS,
   chromeLaunch,
   chromeSteps,
+  CLIENTS,
   clientTarget,
   defaultExtensionDir,
   installExtension,
@@ -42,10 +46,6 @@ import {
   type ClientId,
   type FsLike,
 } from './setup.js';
-import { TABLES } from './db.js';
-import { createDemoHandlers, FAKE_BANNER } from './fake-data.js';
-import { FakeExtensionClient } from './fake-extension.js';
-import { HttpServer } from './http.js';
 import { Toolkit } from './toolkit.js';
 import { createMcpServer, SERVER_VERSION } from './tools.js';
 
@@ -61,6 +61,24 @@ const defaultIo: Io = {
   out: (text) => process.stdout.write(`${text}\n`),
   err: (text) => process.stderr.write(`${text}\n`),
 };
+
+const MIME_TYPES: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.txt': 'text/plain',
+};
+
+function readMessageAttachment(filePath: string) {
+  const path = resolve(filePath);
+  const data = readFileSync(path);
+  return {
+    name: basename(path),
+    mimeType: MIME_TYPES[extname(path).toLowerCase()] || 'application/octet-stream',
+    byteSize: data.byteLength,
+    dataBase64: data.toString('base64'),
+  };
+}
 
 /** Thrown to end a command with a message and a non-zero exit code. */
 export class CliError extends Error {
@@ -932,10 +950,12 @@ export function buildProgram(io: Io = defaultIo): Command {
     .requiredOption('--body <body>', 'the message body')
     .description('Send a message to a first-degree connection.')
     .option('--dry-run', 'show what would be sent without sending it')
+    .option('--attachment <path>', 'attach a local PDF or document file')
     .action(async (url, options) => {
       const data = await client().action('outreach.message', {
         publicId: publicIdFrom(url),
         body: options.body,
+        ...(options.attachment ? { attachment: readMessageAttachment(options.attachment) } : {}),
         ...(options.dryRun ? { dry_run: true } : {}),
       });
       io.out(

@@ -117,6 +117,7 @@ export const EVENTS = Object.freeze({
   QUOTA_HIT: 'quota_hit',
   CHALLENGE_DETECTED: 'challenge_detected',
   QUEUE_ITEM_ADDED: 'queue_item_added',
+  QUEUE_ITEM_BLOCKED: 'queue_item_blocked',
   QUEUE_ITEM_SENT: 'queue_item_sent',
   CAMPAIGN_NOTE_TRUNCATED: 'campaign_note_truncated',
   RESEARCH_PROGRESS: 'research_progress',
@@ -146,6 +147,42 @@ export const INVITE_NOTE_MAX = 200;
 
 /** The one sentence every layer says when a note is too long. */
 export const INVITE_NOTE_FIX = 'LinkedIn limits invitation notes to 200 characters.';
+
+export const MESSAGE_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+
+export function validateMessageAttachment(attachment) {
+  if (!attachment || typeof attachment !== 'object' || Array.isArray(attachment)) {
+    return 'attachment must be an object';
+  }
+  if (typeof attachment.name !== 'string' || !attachment.name.trim()) {
+    return 'attachment.name must be a non-empty string';
+  }
+  if (typeof attachment.mimeType !== 'string' || !attachment.mimeType.trim()) {
+    return 'attachment.mimeType must be a non-empty string';
+  }
+  if (!Number.isInteger(attachment.byteSize) || attachment.byteSize < 1) {
+    return 'attachment.byteSize must be a positive integer';
+  }
+  if (attachment.byteSize > MESSAGE_ATTACHMENT_MAX_BYTES) {
+    return `attachment.byteSize must be ${MESSAGE_ATTACHMENT_MAX_BYTES} bytes or less`;
+  }
+  if (typeof attachment.dataBase64 !== 'string' || !attachment.dataBase64) {
+    return 'attachment.dataBase64 must be a non-empty string';
+  }
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(attachment.dataBase64)) {
+    return 'attachment.dataBase64 must be base64';
+  }
+  const padding = attachment.dataBase64.endsWith('==')
+    ? 2
+    : attachment.dataBase64.endsWith('=')
+      ? 1
+      : 0;
+  const decodedBytes = Math.floor((attachment.dataBase64.length * 3) / 4) - padding;
+  if (decodedBytes !== attachment.byteSize) {
+    return 'attachment.dataBase64 does not match attachment.byteSize';
+  }
+  return null;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Mass unfollow                                                      */
@@ -410,7 +447,7 @@ const PARAM_SPECS = {
   },
   [ACTIONS.OUTREACH_MESSAGE]: {
     required: { publicId: 'string', body: 'string' },
-    optional: { dryRun: 'boolean' },
+    optional: { dryRun: 'boolean', threadId: 'string', attachment: 'object' },
   },
   [ACTIONS.OUTREACH_INMAIL]: {
     required: { publicId: 'string', subject: 'string', body: 'string' },
@@ -467,10 +504,7 @@ const PARAM_SPECS = {
 
   [ACTIONS.QUEUE_LIST]: {
     optional: { status: 'string' },
-    // `failed` is a status the queue actually writes, so it has to be a status
-    // the queue can be asked for; without it there was no way to list the
-    // items that did not send.
-    enums: { status: ['pending', 'approved', 'rejected', 'sent', 'failed'] },
+    enums: { status: ['pending', 'approved', 'rejected', 'sent'] },
   },
   [ACTIONS.QUEUE_APPROVE]: {
     required: { ids: 'array' },
@@ -555,6 +589,10 @@ export function validateParams(action, params = {}) {
     if (p[field] === undefined || p[field] === null) continue;
     const problem = checkType(field, p[field], expected);
     if (problem) return { ok: false, message: problem };
+    if (action === ACTIONS.OUTREACH_MESSAGE && field === 'attachment') {
+      const attachmentProblem = validateMessageAttachment(p[field]);
+      if (attachmentProblem) return { ok: false, message: attachmentProblem };
+    }
   }
 
   for (const [field, allowed] of Object.entries(enums)) {

@@ -20,8 +20,8 @@
 import { ACTIONS, ERROR, EVENTS, EngineError, validateParams } from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
 import { K, get, newId, set, stamp, update, withKeyLock } from '../lib/storage.js';
-import { emit } from './events.js';
 import { register } from './engine.js';
+import { emit } from './events.js';
 
 /** Only these four actions ever queue; view/follow/like are low-risk. */
 export const QUEUEABLE = Object.freeze([
@@ -43,7 +43,12 @@ export function isQueueable(action) {
 }
 
 async function readQueue() {
-  return get(K.QUEUE, []);
+  const items = await get(K.QUEUE, []);
+  const migrated = items.map((item) =>
+    item.status === 'failed' ? { ...item, status: 'pending', updatedAt: Date.now() } : item,
+  );
+  if (migrated.some((item, index) => item !== items[index])) await set(K.QUEUE, migrated);
+  return migrated;
 }
 
 /**
@@ -97,7 +102,7 @@ function editedParams(item, edit = {}) {
  * Editing is the moment a human can make a queued write invalid — pasting a
  * 300-character note over a 190-character one, say — and the honest place to
  * say so is here, while they are looking at it, rather than at send time an
- * unknown number of seconds later with the item marked `failed`.
+ * unknown number of seconds later with the item left pending and unusable.
  */
 function assertValid(action, params) {
   const check = validateParams(action, params);
@@ -182,9 +187,16 @@ async function sendOne(item) {
     patch = { status: 'sent', result };
     sent = result;
   } catch (e) {
+    const code = e.code || 'INTERNAL';
     patch = {
-      status: 'failed',
-      result: { error: { code: e.code || 'INTERNAL', message: e.message } },
+      status: 'pending',
+      result: {
+        error: {
+          code,
+          message: e.message,
+          ...(e.extra || {}),
+        },
+      },
     };
   }
 
@@ -202,6 +214,14 @@ async function sendOne(item) {
       result: sent,
       ...(item.context || {}),
     });
+  } else {
+    await emit(EVENTS.QUEUE_ITEM_BLOCKED, {
+      id: item.id,
+      action: item.action,
+      publicId: item.params.publicId,
+      error: patch.result.error,
+      ...(item.context || {}),
+    });
   }
   return !!sent;
 }
@@ -211,10 +231,11 @@ async function sendOne(item) {
  *
  * One at a time is the point: the send path paces itself, and two in flight at
  * once would defeat both the pacing and the quota reservation it protects. One
- * failure does not stop the rest — that item is marked `failed` and carries its
- * error — but a stand-down (a rate limit, a challenge, an exhausted quota)
- * would fail every remaining item for the same reason, so the drain stops and
- * leaves them approved for the next tick.
+ * failure does not stop the rest — that item returns to `pending` and carries
+ * its error. Every send error returns the item to `pending` and preserves the
+ * error. A stand-down (a rate limit, a challenge, an exhausted quota, or a
+ * closed business window) also stops the drain so the draft remains visible
+ * and can be approved again.
  *
  * @returns {Promise<{sent: number, failed: number, remaining: number}>}
  */
@@ -231,7 +252,6 @@ export async function sendApproved() {
       if (!next) break;
       if (await sendOne(next)) sent += 1;
       else {
-        failed += 1;
         const item = await byId(next.id);
         const code = item && item.result && item.result.error && item.result.error.code;
         if (STOP_THE_DRAIN.has(code)) break;

@@ -7,23 +7,23 @@
  * `config.set` clamps to the contract Config and would drop them.
  */
 
-import { el, render, fmtAgo, fmtDate, fmtNumber } from '../../ui/dom.js';
-import { call, getLocal, setLocal, UI_KEYS } from '../../ui/api.js';
 import { ACTIONS } from '../../lib/actions.js';
+import { call, getLocal, setLocal, UI_KEYS } from '../../ui/api.js';
 import {
-  card,
-  row,
-  input,
-  textarea,
-  select,
-  checkbox,
-  pill,
-  errorLine,
-  statusLine,
   busyButton,
   button,
+  card,
+  checkbox,
   empty,
+  errorLine,
+  input,
+  pill,
+  row,
+  select,
+  statusLine,
+  textarea,
 } from '../../ui/components.js';
+import { el, fmtAgo, fmtDate, fmtNumber, render } from '../../ui/dom.js';
 
 export const id = 'inbox';
 export const label = 'Inbox';
@@ -234,6 +234,7 @@ export async function mount(container) {
             const result = await call(ACTIONS.OUTREACH_MESSAGE, {
               publicId: person.publicId,
               body: body.value.trim(),
+              threadId: thread.threadId,
             });
             flash.set(
               result.status === 'queued'

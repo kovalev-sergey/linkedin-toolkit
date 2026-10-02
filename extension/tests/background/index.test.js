@@ -1,14 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { ACTIONS, HARD_CAPS } from '../../src/lib/actions.js';
-import * as queue from '../../src/background/queue.js';
-import * as quota from '../../src/background/quota.js';
 import {
   CAMPAIGN_TICK_ALARM,
   QUEUE_TICK_ALARM,
   QUEUE_TICK_MINUTES,
   route,
 } from '../../src/background/index.js';
+import * as queue from '../../src/background/queue.js';
+import * as quota from '../../src/background/quota.js';
+import { ACTIONS, ERROR, HARD_CAPS } from '../../src/lib/actions.js';
 
 const mock = () => globalThis.chrome.__mock;
 
@@ -49,9 +49,11 @@ describe('service worker wiring', () => {
     // The listener is fire-and-forget; give the drain its turns.
     await vi.waitFor(async () => expect(await queue.list('approved')).toHaveLength(0));
 
-    // Signed out in this suite, so it could only have failed — but it was
-    // picked up, which is the thing the alarm exists to do.
-    expect((await queue.list('failed'))).toHaveLength(1);
+    // Signed out in this suite, so it remains pending with a retryable error;
+    // the alarm still picked it up, which is the thing the alarm exists to do.
+    const pending = await queue.list('pending');
+    expect(pending).toHaveLength(1);
+    expect(pending[0].result.error.code).toBe(ERROR.NOT_LOGGED_IN);
   });
 });
 

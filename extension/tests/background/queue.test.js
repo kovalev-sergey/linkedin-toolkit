@@ -322,14 +322,14 @@ describe('queue.list / approve / reject', () => {
     expect((await handle(ACTIONS.QUEUE_LIST, { status: 'sent' })).data.items).toHaveLength(0);
   });
 
-  it('lists failed items too', async () => {
+  it('lists delivery errors on pending items', async () => {
     const queued = await invite('mcp');
     net.push({ __status: 500, body: { message: 'boom' } });
     await approveAndSend({ ids: [queued.data.queueId] });
 
-    const failed = (await handle(ACTIONS.QUEUE_LIST, { status: 'failed' })).data.items;
-    expect(failed).toHaveLength(1);
-    expect(failed[0].result.error.message).toMatch(/boom|500/);
+    const pending = (await handle(ACTIONS.QUEUE_LIST, { status: 'pending' })).data.items;
+    expect(pending).toHaveLength(1);
+    expect(pending[0].result.error.message).toMatch(/boom|500/);
   });
 
   it('approve marks the item and the sender sends it', async () => {
@@ -359,7 +359,7 @@ describe('queue.list / approve / reject', () => {
     expect(body.customMessage).toBe('Edited note');
   });
 
-  it('the sender marks an item failed when the send throws, and keeps going', async () => {
+  it('returns a send error to pending and keeps going', async () => {
     const a = await invite('mcp');
     const b = await invite('mcp', { publicId: 'bobbright' });
 
@@ -372,7 +372,8 @@ describe('queue.list / approve / reject', () => {
     expect(res.data.approved).toBe(2);
 
     const items = await queue.list();
-    expect(items.find((i) => i.id === a.data.queueId).status).toBe('failed');
+    expect(items.find((i) => i.id === a.data.queueId).status).toBe('pending');
+    expect(items.find((i) => i.id === a.data.queueId).result.error.message).toMatch(/boom|500/);
     expect(items.find((i) => i.id === b.data.queueId).status).toBe('sent');
   });
 
@@ -511,7 +512,7 @@ describe('approve returns before anything is sent', () => {
     expect(again.data).toEqual({ approved: 0 });
   });
 
-  it('stops the drain on a stand-down and leaves the rest approved', async () => {
+  it('stops the drain on a stand-down and returns the blocked item to pending', async () => {
     const a = await invite('mcp');
     const b = await invite('mcp', { publicId: 'bobbright' });
     await handle(ACTIONS.QUEUE_APPROVE, { ids: [a.data.queueId, b.data.queueId] });
@@ -522,7 +523,30 @@ describe('approve returns before anything is sent', () => {
     expect(out.sent).toBe(0);
     expect(out.remaining).toBe(1);
     expect((await queue.list('approved'))).toHaveLength(1);
-    expect((await queue.list('failed'))).toHaveLength(1);
+    expect((await queue.list('pending'))).toHaveLength(1);
+    expect((await queue.list('failed'))).toHaveLength(0);
+    expect((await queue.list('pending'))[0].result.error).toMatchObject({
+      code: ERROR.RATE_LIMITED,
+      message: expect.stringContaining('Rate limited'),
+    });
+    expect(eventNames()).toContain('queue_item_blocked');
+  });
+
+  it('keeps an exhausted quota item pending with the limit message', async () => {
+    const queued = await invite('mcp');
+    const visit = await quota.snapshot('visit');
+    await quota.record('visit', visit.hourlyCap);
+    await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] });
+
+    const out = await queue.sendApproved();
+
+    expect(out).toEqual({ sent: 0, failed: 0, remaining: 0 });
+    const pending = await queue.list('pending');
+    expect(pending).toHaveLength(1);
+    expect(pending[0].result.error).toMatchObject({
+      code: ERROR.QUOTA_EXCEEDED,
+      message: 'Hourly cap reached for visit (20/hour).',
+    });
   });
 
   it('two drains at once do not send the same item twice', async () => {

@@ -6,20 +6,20 @@
  * `queue.approve { ids, edits }`.
  */
 
-import { el, render, fmtAgo, fmtNumber } from '../../ui/dom.js';
-import { call } from '../../ui/api.js';
-import { ACTIONS } from '../../lib/actions.js';
+import { ACTIONS, EVENTS } from '../../lib/actions.js';
+import { call, onEvent } from '../../ui/api.js';
 import {
-  card,
-  row,
-  textarea,
-  select,
-  pill,
-  errorLine,
-  statusLine,
   busyButton,
+  card,
   empty,
+  errorLine,
+  pill,
+  row,
+  select,
+  statusLine,
+  textarea,
 } from '../../ui/components.js';
+import { el, fmtAgo, fmtNumber, render } from '../../ui/dom.js';
 
 export const id = 'queue';
 export const label = 'Queue';
@@ -44,18 +44,34 @@ export function editableKey(action) {
 }
 
 const statusTone = (status) =>
-  status === 'sent' ? 'good' : status === 'rejected' ? 'bad' : status === 'failed' ? 'bad' : 'warn';
+  status === 'sent' ? 'good' : status === 'rejected' ? 'bad' : 'warn';
 
 export async function mount(container) {
   const err = errorLine();
   const status = statusLine();
-  const state = { items: [], filter: 'pending', edits: new Map() };
+  const state = { items: [], filter: 'pending', edits: new Map(), processing: new Map() };
 
   async function load() {
     const data = await call(ACTIONS.QUEUE_LIST, { status: state.filter });
     state.items = data.items || [];
+    if (state.filter === 'pending' && state.processing.size) {
+      const approved = await call(ACTIONS.QUEUE_LIST, { status: 'approved' });
+      const approvedIds = new Set((approved.items || []).map((item) => item.id));
+      for (const [id, item] of state.processing) {
+        if (approvedIds.has(id)) state.items.push(item);
+        else state.processing.delete(id);
+      }
+    }
     state.edits = new Map();
   }
+
+  onEvent((name, payload) => {
+    if (name !== EVENTS.QUEUE_ITEM_BLOCKED && name !== EVENTS.QUEUE_ITEM_SENT) return;
+    if (payload && payload.id) state.processing.delete(payload.id);
+    load()
+      .then(draw)
+      .catch((e) => err.show(e));
+  });
 
   /** Only send an `edits` entry for items the human actually changed. */
   function editsFor(ids) {
@@ -72,7 +88,13 @@ export async function mount(container) {
     const params = { ids };
     const edits = editsFor(ids);
     if (edits) params.edits = edits;
+    const approvedItems = state.items
+      .filter((item) => ids.includes(item.id))
+      .map((item) => ({ ...item, status: 'approved' }));
     const res = await call(ACTIONS.QUEUE_APPROVE, params);
+    if (res.approved) {
+      for (const item of approvedItems) state.processing.set(item.id, item);
+    }
     status.set(`Approved ${fmtNumber(res.approved)}.`);
     await load();
     draw();
@@ -128,6 +150,21 @@ export async function mount(container) {
       ),
       item.params && item.params.subject
         ? el('div', { class: 'item-sub mono' }, `Subject: ${item.params.subject}`)
+        : null,
+      item.params && item.params.attachment
+        ? el(
+          'div',
+          { class: 'item-sub' },
+          `Attachment: ${item.params.attachment.name || 'document'}`,
+        )
+        : null,
+      item.result && item.result.error
+        ? el(
+          'p',
+          { class: 'err' },
+          `Not sent: ${item.result.error.code ? `${item.result.error.code}: ` : ''}${item.result.error.message || 'The queued action could not be sent.'
+          }`,
+        )
         : null,
       area,
       el('div', { class: 'item-sub' }, `Queued ${fmtAgo(item.createdAt)}`),

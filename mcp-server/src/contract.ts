@@ -96,6 +96,32 @@ export const MessageSchema = z
   })
   .passthrough();
 
+export const MessageAttachmentSchema = z
+  .object({
+    name: z.string().min(1),
+    mimeType: z.string().min(1),
+    byteSize: z.number().int().positive().max(10 * 1024 * 1024),
+    dataBase64: z
+      .string()
+      .min(1)
+      .regex(/^[A-Za-z0-9+/]*={0,2}$/),
+  })
+  .superRefine((attachment, context) => {
+    const padding = attachment.dataBase64.endsWith('==')
+      ? 2
+      : attachment.dataBase64.endsWith('=')
+        ? 1
+        : 0;
+    const decodedBytes = Math.floor((attachment.dataBase64.length * 3) / 4) - padding;
+    if (decodedBytes !== attachment.byteSize) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['byteSize'],
+        message: 'dataBase64 does not match byteSize',
+      });
+    }
+  });
+
 export const ListSchema = z
   .object({
     listId: z.string(),
@@ -202,7 +228,7 @@ export const QueueItemSchema = z
     origin: z.enum(['popup', 'campaign', 'mcp', 'cli']),
     profile: ProfileSchema.optional(),
     createdAt: z.number(),
-    status: z.enum(['pending', 'approved', 'rejected', 'sent', 'failed']),
+    status: z.enum(['pending', 'approved', 'rejected', 'sent']),
     result: z.record(z.string(), z.unknown()).optional(),
   })
   .passthrough();
@@ -392,6 +418,7 @@ export const EVENTS = [
   'quota_hit',
   'challenge_detected',
   'queue_item_added',
+  'queue_item_blocked',
   'queue_item_sent',
   'campaign_note_truncated',
   'research_progress',
@@ -510,7 +537,12 @@ export const PARAMS = {
   'outreach.view': z.object({ publicId: z.string() }),
   'outreach.follow': z.object({ publicId: z.string() }),
   'outreach.invite': z.object({ publicId: z.string(), note: z.string().optional() }),
-  'outreach.message': z.object({ publicId: z.string(), body: z.string() }),
+  'outreach.message': z.object({
+    publicId: z.string(),
+    body: z.string(),
+    threadId: z.string().optional(),
+    attachment: MessageAttachmentSchema.optional(),
+  }),
   'outreach.inmail': z.object({ publicId: z.string(), subject: z.string(), body: z.string() }),
   'outreach.like': z.object({ postUrl: z.string() }),
   'outreach.comment': z.object({ postUrl: z.string(), body: z.string() }),
@@ -555,7 +587,7 @@ export const PARAMS = {
   'campaign.tick': Empty,
 
   'queue.list': z.object({
-    status: z.enum(['pending', 'approved', 'rejected', 'sent', 'failed']).optional(),
+    status: z.enum(['pending', 'approved', 'rejected', 'sent']).optional(),
   }),
   'queue.approve': z.object({
     ids: z.array(z.string()),
@@ -1000,14 +1032,14 @@ export const TOOLS: ToolDef[] = [
     name: 'linkedin_queue_list',
     action: 'queue.list',
     description:
-      'List items in the human-approval queue, optionally filtered by status ("pending", "approved", "rejected", "sent" or "failed"). In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting, and poll it after linkedin_queue_approve to see what actually sent. Returns queue items with their action, params and target profile; a failed item carries result.error.',
+      'List items in the human-approval queue, optionally filtered by status ("pending", "approved", "rejected" or "sent"). In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting, and poll it after linkedin_queue_approve to see what actually sent. Delivery errors return the draft to pending and carry result.error.',
     write: false,
   },
   {
     name: 'linkedin_queue_approve',
     action: 'queue.approve',
     description:
-      'Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved} immediately — the count marked approved, not sent. The extension then sends them one at a time at human pace, which takes seconds to minutes, so watch queue_item_sent events or poll linkedin_queue_list (status "sent" or "failed") rather than assuming the writes have landed when this returns. An edited note longer than 200 characters is refused here with INVALID_PARAMS and nothing is approved.',
+      'Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved} immediately — the count marked approved, not sent. The extension then sends them one at a time at human pace, which takes seconds to minutes, so watch queue_item_sent and queue_item_blocked events or poll linkedin_queue_list; delivery errors remain attached to pending drafts for retry. An edited note longer than 200 characters is refused here with INVALID_PARAMS and nothing is approved.',
     write: true,
   },
   {
