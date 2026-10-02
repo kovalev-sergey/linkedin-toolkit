@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { spawn } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, extname, join, resolve } from 'node:path';
 /**
  * `lit` — the command line for the LinkedIn Toolkit.
  *
@@ -9,9 +12,6 @@
  */
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { Command, CommanderError } from 'commander';
-import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, extname, join, resolve } from 'node:path';
 import {
   clearRuntime,
   generateToken,
