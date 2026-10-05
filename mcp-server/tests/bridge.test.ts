@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { BridgeServer, BridgeError, offlineError } from '../src/bridge.js';
-import { FakeExtension, FakeError } from './fakeExtension.js';
-import { defaultHandlers, ada } from './fixtures.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BridgeError, BridgeServer, offlineError } from '../src/bridge.js';
+import { FakeError, FakeExtension } from './fakeExtension.js';
+import { ada, defaultHandlers } from './fixtures.js';
 
 const TOKEN = 'a'.repeat(32);
 
@@ -35,13 +35,22 @@ describe('BridgeServer', () => {
   });
 
   it('completes the hello handshake and answers a request', async () => {
-    ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
+    ext = new FakeExtension({
+      port: bridge.port,
+      token: TOKEN,
+      handlers: defaultHandlers(),
+    });
     await ext.connect();
     expect(bridge.isConnected()).toBe(true);
     expect(bridge.connectedExtensionVersion()).toBe('2.0.0');
 
-    const profile = await bridge.request('profile.get', { publicId: 'ada-lovelace' });
-    expect(profile).toMatchObject({ publicId: ada.publicId, fullName: 'Ada Lovelace' });
+    const profile = await bridge.request('profile.get', {
+      publicId: 'ada-lovelace',
+    });
+    expect(profile).toMatchObject({
+      publicId: ada.publicId,
+      fullName: 'Ada Lovelace',
+    });
     expect(ext.seen[0]).toEqual({
       action: 'profile.get',
       params: { publicId: 'ada-lovelace' },
@@ -49,7 +58,10 @@ describe('BridgeServer', () => {
   });
 
   it('closes with 4001 on a token mismatch', async () => {
-    const code = await FakeExtension.expectRejected({ port: bridge.port, token: 'wrong' });
+    const code = await FakeExtension.expectRejected({
+      port: bridge.port,
+      token: 'wrong',
+    });
     expect(code).toBe(4001);
     expect(bridge.isConnected()).toBe(false);
   });
@@ -67,9 +79,9 @@ describe('BridgeServer', () => {
   it('turns an error envelope into a BridgeError with retryAfter and howToFix', async () => {
     const handlers = defaultHandlers();
     handlers['outreach.invite'] = () => {
-      throw new FakeError('RATE_LIMITED', 'Hourly invite cap reached', {
+      throw new FakeError('RATE_LIMITED', 'LinkedIn rate limit reached', {
         retryAfter: 3600,
-        howToFix: 'Wait for the hourly window to reset.',
+        howToFix: 'Wait for LinkedIn to allow requests again.',
       });
     };
     ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers });
@@ -79,7 +91,7 @@ describe('BridgeServer', () => {
       name: 'BridgeError',
       code: 'RATE_LIMITED',
       retryAfter: 3600,
-      howToFix: 'Wait for the hourly window to reset.',
+      howToFix: 'Wait for LinkedIn to allow requests again.',
     });
   });
 
@@ -96,7 +108,11 @@ describe('BridgeServer', () => {
   });
 
   it('forwards extension events to on("event")', async () => {
-    ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
+    ext = new FakeExtension({
+      port: bridge.port,
+      token: TOKEN,
+      handlers: defaultHandlers(),
+    });
     await ext.connect();
 
     const received = new Promise<{ name: string; payload: unknown }>((resolve) => {
@@ -110,7 +126,11 @@ describe('BridgeServer', () => {
   });
 
   it('replaces an older connection with a newer one', async () => {
-    const first = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
+    const first = new FakeExtension({
+      port: bridge.port,
+      token: TOKEN,
+      handlers: defaultHandlers(),
+    });
     await first.connect();
     ext = new FakeExtension({
       port: bridge.port,
@@ -160,7 +180,11 @@ describe('BridgeServer', () => {
     const inFlight = bridge.request('search.people', { keywords: 'x' }).catch((err) => err);
     await new Promise((r) => setTimeout(r, 20));
 
-    ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
+    ext = new FakeExtension({
+      port: bridge.port,
+      token: TOKEN,
+      handlers: defaultHandlers(),
+    });
     await ext.connect();
 
     expect(await inFlight).toMatchObject({
@@ -168,12 +192,18 @@ describe('BridgeServer', () => {
       message: expect.stringContaining('reconnected'),
     });
     // The replacement connection is immediately usable.
-    await expect(bridge.request('status.get')).resolves.toMatchObject({ loggedIn: true });
+    await expect(bridge.request('status.get')).resolves.toMatchObject({
+      loggedIn: true,
+    });
     await first.close();
   });
 
   it('sends the optional origin field only when one is given', async () => {
-    ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
+    ext = new FakeExtension({
+      port: bridge.port,
+      token: TOKEN,
+      handlers: defaultHandlers(),
+    });
     await ext.connect();
 
     await bridge.request('status.get', {}, { origin: 'cli' });
@@ -184,7 +214,11 @@ describe('BridgeServer', () => {
   });
 
   it('goes offline again when the extension disconnects', async () => {
-    ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
+    ext = new FakeExtension({
+      port: bridge.port,
+      token: TOKEN,
+      handlers: defaultHandlers(),
+    });
     await ext.connect();
     const gone = new Promise<void>((resolve) => bridge.on('disconnected', () => resolve()));
     await ext.close();
@@ -195,7 +229,11 @@ describe('BridgeServer', () => {
   });
 
   it('tolerates a pong frame without treating it as a response or an event', async () => {
-    ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
+    ext = new FakeExtension({
+      port: bridge.port,
+      token: TOKEN,
+      handlers: defaultHandlers(),
+    });
     await ext.connect();
 
     const events: string[] = [];
@@ -210,7 +248,9 @@ describe('BridgeServer', () => {
     expect(errors).not.toHaveBeenCalled();
     expect(warnings).not.toHaveBeenCalled();
     // The socket is still perfectly usable.
-    await expect(bridge.request('status.get')).resolves.toMatchObject({ loggedIn: true });
+    await expect(bridge.request('status.get')).resolves.toMatchObject({
+      loggedIn: true,
+    });
 
     errors.mockRestore();
     warnings.mockRestore();
@@ -226,12 +266,20 @@ describe('BridgeServer', () => {
 describe('BridgeServer keepalive', () => {
   it('sends a JSON ping within the interval, alongside the protocol ping', async () => {
     vi.useFakeTimers({ toFake: ['setInterval'] });
-    const server = new BridgeServer({ port: 0, token: TOKEN, pingIntervalMs: 20_000 });
+    const server = new BridgeServer({
+      port: 0,
+      token: TOKEN,
+      pingIntervalMs: 20_000,
+    });
     let client: FakeExtension | null = null;
 
     try {
       await server.start();
-      client = new FakeExtension({ port: server.port, token: TOKEN, handlers: defaultHandlers() });
+      client = new FakeExtension({
+        port: server.port,
+        token: TOKEN,
+        handlers: defaultHandlers(),
+      });
       await client.connect();
       expect(client.pings).toBe(0);
 
@@ -245,7 +293,9 @@ describe('BridgeServer keepalive', () => {
       expect(client.pings).toBeGreaterThanOrEqual(1);
       // The pong it answered with did not break the connection.
       expect(server.isConnected()).toBe(true);
-      await expect(server.request('status.get')).resolves.toMatchObject({ loggedIn: true });
+      await expect(server.request('status.get')).resolves.toMatchObject({
+        loggedIn: true,
+      });
     } finally {
       vi.useRealTimers();
       await client?.close();

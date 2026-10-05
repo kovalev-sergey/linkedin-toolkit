@@ -105,6 +105,36 @@ export const MessageSchema = z
   })
   .passthrough();
 
+export const MessageAttachmentSchema = z
+  .object({
+    name: z.string().min(1),
+    mimeType: z.string().min(1),
+    byteSize: z
+      .number()
+      .int()
+      .positive()
+      .max(10 * 1024 * 1024),
+    dataBase64: z
+      .string()
+      .min(1)
+      .regex(/^[A-Za-z0-9+/]*={0,2}$/),
+  })
+  .superRefine((attachment, context) => {
+    const padding = attachment.dataBase64.endsWith('==')
+      ? 2
+      : attachment.dataBase64.endsWith('=')
+        ? 1
+        : 0;
+    const decodedBytes = Math.floor((attachment.dataBase64.length * 3) / 4) - padding;
+    if (decodedBytes !== attachment.byteSize) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['byteSize'],
+        message: 'dataBase64 does not match byteSize',
+      });
+    }
+  });
+
 export const ListSchema = z
   .object({
     listId: z.string(),
@@ -211,7 +241,7 @@ export const QueueItemSchema = z
     origin: z.enum(['popup', 'campaign', 'mcp', 'cli']),
     profile: ProfileSchema.optional(),
     createdAt: z.number(),
-    status: z.enum(['pending', 'approved', 'rejected', 'sent', 'failed']),
+    status: z.enum(['pending', 'approved', 'rejected', 'sent']),
     result: z.record(z.string(), z.unknown()).optional(),
   })
   .passthrough();
@@ -283,8 +313,6 @@ export const WriteResultSchema = z
 
 export const RateLimitSchema = z
   .object({
-    hourlyUsed: z.number(),
-    hourlyCap: z.number(),
     dailyUsed: z.number(),
     dailyCap: z.number(),
     nextAllowedAt: z.number(),
@@ -334,7 +362,6 @@ export const ConfigSchema = z
   .object({
     minDelayMs: z.number(),
     maxDelayMs: z.number(),
-    hourlyCap: z.number(),
     dailyInviteCap: z.number(),
     dailyMessageCap: z.number(),
     dailyVisitCap: z.number(),
@@ -361,7 +388,11 @@ export const ConfigSchema = z
       })
       .passthrough(),
     bridge: z
-      .object({ enabled: z.boolean(), port: z.number(), token: z.string().optional() })
+      .object({
+        enabled: z.boolean(),
+        port: z.number(),
+        token: z.string().optional(),
+      })
       .passthrough(),
     webhookUrl: z.string().optional(),
   })
@@ -401,6 +432,7 @@ export const EVENTS = [
   'quota_hit',
   'challenge_detected',
   'queue_item_added',
+  'queue_item_blocked',
   'queue_item_sent',
   'campaign_note_truncated',
   'research_progress',
@@ -442,7 +474,12 @@ export const EnvelopeSchema = z.union([
 ]);
 
 export type Envelope =
-  | { id: string; ok: true; data: unknown; rateLimit?: z.infer<typeof RateLimitSchema> }
+  | {
+      id: string;
+      ok: true;
+      data: unknown;
+      rateLimit?: z.infer<typeof RateLimitSchema>;
+    }
   | { id: string; ok: false; error: z.infer<typeof ErrorShapeSchema> };
 
 export const BridgeEventSchema = z.object({
@@ -455,7 +492,10 @@ export const BridgeEventSchema = z.object({
  * ------------------------------------------------------------------ */
 
 const Empty = z.object({});
-const Pagination = { start: z.number().int().min(0).optional(), count: z.number().int().min(1).optional() };
+const Pagination = {
+  start: z.number().int().min(0).optional(),
+  count: z.number().int().min(1).optional(),
+};
 
 export const PARAMS = {
   'status.get': z.object({
@@ -479,9 +519,15 @@ export const PARAMS = {
     publicId: z.string().optional(),
     full: z.boolean().optional(),
   }),
-  'profile.export': z.object({ urls: z.array(z.string()), full: z.boolean().optional() }),
+  'profile.export': z.object({
+    urls: z.array(z.string()),
+    full: z.boolean().optional(),
+  }),
 
-  'company.get': z.object({ url: z.string().optional(), universalName: z.string().optional() }),
+  'company.get': z.object({
+    url: z.string().optional(),
+    universalName: z.string().optional(),
+  }),
   'company.employees': z.object({ universalName: z.string(), ...Pagination }),
 
   'post.engagers': z.object({
@@ -518,9 +564,21 @@ export const PARAMS = {
 
   'outreach.view': z.object({ publicId: z.string() }),
   'outreach.follow': z.object({ publicId: z.string() }),
-  'outreach.invite': z.object({ publicId: z.string(), note: z.string().optional() }),
-  'outreach.message': z.object({ publicId: z.string(), body: z.string() }),
-  'outreach.inmail': z.object({ publicId: z.string(), subject: z.string(), body: z.string() }),
+  'outreach.invite': z.object({
+    publicId: z.string(),
+    note: z.string().optional(),
+  }),
+  'outreach.message': z.object({
+    publicId: z.string(),
+    body: z.string(),
+    threadId: z.string().optional(),
+    attachment: MessageAttachmentSchema.optional(),
+  }),
+  'outreach.inmail': z.object({
+    publicId: z.string(),
+    subject: z.string(),
+    body: z.string(),
+  }),
   'outreach.like': z.object({ postUrl: z.string() }),
   'outreach.comment': z.object({ postUrl: z.string(), body: z.string() }),
 
@@ -529,10 +587,16 @@ export const PARAMS = {
     unreadOnly: z.boolean().optional(),
     count: z.number().int().min(1).optional(),
   }),
-  'inbox.messages': z.object({ threadId: z.string(), since: z.number().optional() }),
+  'inbox.messages': z.object({
+    threadId: z.string(),
+    since: z.number().optional(),
+  }),
   'inbox.export': z.object({ since: z.number().optional() }),
 
-  'list.create': z.object({ name: z.string(), tags: z.array(z.string()).optional() }),
+  'list.create': z.object({
+    name: z.string(),
+    tags: z.array(z.string()).optional(),
+  }),
   'list.getAll': Empty,
   'list.get': z.object({ listId: z.string() }),
   'list.add': z.object({
@@ -540,7 +604,10 @@ export const PARAMS = {
     profiles: z.array(ProfileSchema).optional(),
     publicIds: z.array(z.string()).optional(),
   }),
-  'list.remove': z.object({ listId: z.string(), publicIds: z.array(z.string()) }),
+  'list.remove': z.object({
+    listId: z.string(),
+    publicIds: z.array(z.string()),
+  }),
   'list.members': z.object({ listId: z.string(), ...Pagination }),
   'list.delete': z.object({ listId: z.string() }),
   'list.importCsv': z.object({ listId: z.string(), csv: z.string() }),
@@ -551,20 +618,26 @@ export const PARAMS = {
     listId: z.string().optional(),
     publicIds: z.array(z.string()).optional(),
     settings: z
-      .object({ stopOnReply: z.boolean().optional(), autopilot: z.boolean().optional() })
+      .object({
+        stopOnReply: z.boolean().optional(),
+        autopilot: z.boolean().optional(),
+      })
       .passthrough()
       .optional(),
   }),
   'campaign.getAll': Empty,
   'campaign.get': z.object({ campaignId: z.string() }),
-  'campaign.enroll': z.object({ campaignId: z.string(), publicIds: z.array(z.string()) }),
+  'campaign.enroll': z.object({
+    campaignId: z.string(),
+    publicIds: z.array(z.string()),
+  }),
   'campaign.pause': z.object({ campaignId: z.string() }),
   'campaign.resume': z.object({ campaignId: z.string() }),
   'campaign.delete': z.object({ campaignId: z.string() }),
   'campaign.tick': Empty,
 
   'queue.list': z.object({
-    status: z.enum(['pending', 'approved', 'rejected', 'sent', 'failed']).optional(),
+    status: z.enum(['pending', 'approved', 'rejected', 'sent']).optional(),
   }),
   'queue.approve': z.object({
     ids: z.array(z.string()),
@@ -601,7 +674,7 @@ export type ActionName = keyof typeof PARAMS;
 export const ACTIONS = Object.keys(PARAMS) as ActionName[];
 
 export function isAction(name: string): name is ActionName {
-  return Object.prototype.hasOwnProperty.call(PARAMS, name);
+  return Object.hasOwn(PARAMS, name);
 }
 
 /* ------------------------------------------------------------------ *
@@ -641,9 +714,7 @@ export const RESULTS = {
     count: z.number(),
     sample: z.array(z.string()).optional(),
     // Only with `scope: 'everyone'`: what the followers scan found.
-    followers: z
-      .object({ total: z.number(), stillFollowing: z.number() })
-      .optional(),
+    followers: z.object({ total: z.number(), stillFollowing: z.number() }).optional(),
   }),
   'network.unfollowAll': z.object({
     unfollowed: z.number(),
@@ -673,13 +744,19 @@ export const RESULTS = {
   'outreach.comment': WriteResultSchema,
   'inbox.threads': z.object({ threads: z.array(ThreadSchema) }),
   'inbox.messages': z.object({ messages: z.array(MessageSchema) }),
-  'inbox.export': z.object({ threads: z.array(ThreadSchema), messages: z.array(MessageSchema) }),
+  'inbox.export': z.object({
+    threads: z.array(ThreadSchema),
+    messages: z.array(MessageSchema),
+  }),
   'list.create': ListSchema,
   'list.getAll': z.object({ lists: z.array(ListSchema) }),
   'list.get': ListSchema,
   'list.add': z.object({ added: z.number(), duplicates: z.number() }),
   'list.remove': z.object({ removed: z.number() }),
-  'list.members': z.object({ members: z.array(ListMemberSchema), total: z.number() }),
+  'list.members': z.object({
+    members: z.array(ListMemberSchema),
+    total: z.number(),
+  }),
   'list.delete': z.object({ ok: z.literal(true) }),
   'list.importCsv': z.object({
     added: z.number(),
@@ -704,7 +781,11 @@ export const RESULTS = {
   }),
   'export.csv': z.object({ csv: z.string(), filename: z.string() }),
   'research.resolve': z.object({ resolved: z.array(ResolvedRowSchema) }),
-  'research.pack': z.object({ jobId: z.string(), total: z.number(), etaMs: z.number().optional() }),
+  'research.pack': z.object({
+    jobId: z.string(),
+    total: z.number(),
+    etaMs: z.number().optional(),
+  }),
   'research.get': z.object({
     jobId: z.string(),
     status: z.string(),
@@ -778,7 +859,9 @@ export const SQL_QUERY_PARAMS = z.object({
 export const SYNC_PARAMS = z.object({ since: z.number().optional() });
 
 /** `linkedin_endpoints_check` always verifies; the post is an optional probe. */
-export const ENDPOINTS_CHECK_PARAMS = z.object({ postUrl: z.string().optional() });
+export const ENDPOINTS_CHECK_PARAMS = z.object({
+  postUrl: z.string().optional(),
+});
 
 export const TOOLS: ToolDef[] = [
   {
@@ -1001,22 +1084,21 @@ export const TOOLS: ToolDef[] = [
   {
     name: 'linkedin_campaign_resume',
     action: 'campaign.resume',
-    description:
-      'Resume a paused campaign from where it stopped. Returns the updated Campaign.',
+    description: 'Resume a paused campaign from where it stopped. Returns the updated Campaign.',
     write: true,
   },
   {
     name: 'linkedin_queue_list',
     action: 'queue.list',
     description:
-      'List items in the human-approval queue, optionally filtered by status ("pending", "approved", "rejected", "sent" or "failed"). In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting, and poll it after linkedin_queue_approve to see what actually sent. Returns queue items with their action, params and target profile; a failed item carries result.error.',
+      'List items in the human-approval queue, optionally filtered by status ("pending", "approved", "rejected" or "sent"). In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting, and poll it after linkedin_queue_approve to see what actually sent. Delivery errors return the draft to pending and carry result.error.',
     write: false,
   },
   {
     name: 'linkedin_queue_approve',
     action: 'queue.approve',
     description:
-      'Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved} immediately — the count marked approved, not sent. The extension then sends them one at a time at human pace, which takes seconds to minutes, so watch queue_item_sent events or poll linkedin_queue_list (status "sent" or "failed") rather than assuming the writes have landed when this returns. An edited note longer than 200 characters is refused here with INVALID_PARAMS and nothing is approved.',
+      'Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved} immediately — the count marked approved, not sent. The extension then sends them one at a time at human pace, which takes seconds to minutes, so watch queue_item_sent and queue_item_blocked events or poll linkedin_queue_list; delivery errors remain attached to pending drafts for retry. An edited note longer than 200 characters is refused here with INVALID_PARAMS and nothing is approved.',
     write: true,
   },
   {

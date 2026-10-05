@@ -6,8 +6,8 @@
  * behaviour and the same inline error line.
  */
 
-import { el, render, fmtNumber } from './dom.js';
 import { ApiError } from './api.js';
+import { el, fmtNumber, render } from './dom.js';
 
 /* ================================================================== */
 /*  Layout                                                            */
@@ -156,7 +156,7 @@ export function progressBar() {
   return node;
 }
 
-/** Quota bar: used / cap, turning warn then bad as it fills. */
+/** Quota bar: daily used / cap, turning warn then bad as it fills. */
 export function quotaBar(label, rate = {}) {
   const used = Number(rate.dailyUsed) || 0;
   const cap = Number(rate.dailyCap) || 0;
@@ -174,12 +174,10 @@ export function quotaBar(label, rate = {}) {
     el(
       'div',
       { class: 'bar' },
-      el('div', { class: `bar-fill bar-fill--${tone}`, style: { width: `${pct}%` } }),
-    ),
-    el(
-      'div',
-      { class: 'quota-sub' },
-      `hour ${fmtNumber(rate.hourlyUsed || 0)} / ${fmtNumber(rate.hourlyCap || 0)}`,
+      el('div', {
+        class: `bar-fill bar-fill--${tone}`,
+        style: { width: `${pct}%` },
+      }),
     ),
   );
 }

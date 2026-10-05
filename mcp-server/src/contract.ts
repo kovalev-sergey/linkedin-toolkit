@@ -100,7 +100,11 @@ export const MessageAttachmentSchema = z
   .object({
     name: z.string().min(1),
     mimeType: z.string().min(1),
-    byteSize: z.number().int().positive().max(10 * 1024 * 1024),
+    byteSize: z
+      .number()
+      .int()
+      .positive()
+      .max(10 * 1024 * 1024),
     dataBase64: z
       .string()
       .min(1)
@@ -300,8 +304,6 @@ export const WriteResultSchema = z
 
 export const RateLimitSchema = z
   .object({
-    hourlyUsed: z.number(),
-    hourlyCap: z.number(),
     dailyUsed: z.number(),
     dailyCap: z.number(),
     nextAllowedAt: z.number(),
@@ -351,7 +353,6 @@ export const ConfigSchema = z
   .object({
     minDelayMs: z.number(),
     maxDelayMs: z.number(),
-    hourlyCap: z.number(),
     dailyInviteCap: z.number(),
     dailyMessageCap: z.number(),
     dailyVisitCap: z.number(),
@@ -378,7 +379,11 @@ export const ConfigSchema = z
       })
       .passthrough(),
     bridge: z
-      .object({ enabled: z.boolean(), port: z.number(), token: z.string().optional() })
+      .object({
+        enabled: z.boolean(),
+        port: z.number(),
+        token: z.string().optional(),
+      })
       .passthrough(),
     webhookUrl: z.string().optional(),
   })
@@ -460,7 +465,12 @@ export const EnvelopeSchema = z.union([
 ]);
 
 export type Envelope =
-  | { id: string; ok: true; data: unknown; rateLimit?: z.infer<typeof RateLimitSchema> }
+  | {
+      id: string;
+      ok: true;
+      data: unknown;
+      rateLimit?: z.infer<typeof RateLimitSchema>;
+    }
   | { id: string; ok: false; error: z.infer<typeof ErrorShapeSchema> };
 
 export const BridgeEventSchema = z.object({
@@ -473,7 +483,10 @@ export const BridgeEventSchema = z.object({
  * ------------------------------------------------------------------ */
 
 const Empty = z.object({});
-const Pagination = { start: z.number().int().min(0).optional(), count: z.number().int().min(1).optional() };
+const Pagination = {
+  start: z.number().int().min(0).optional(),
+  count: z.number().int().min(1).optional(),
+};
 
 export const PARAMS = {
   'status.get': z.object({
@@ -497,9 +510,15 @@ export const PARAMS = {
     publicId: z.string().optional(),
     full: z.boolean().optional(),
   }),
-  'profile.export': z.object({ urls: z.array(z.string()), full: z.boolean().optional() }),
+  'profile.export': z.object({
+    urls: z.array(z.string()),
+    full: z.boolean().optional(),
+  }),
 
-  'company.get': z.object({ url: z.string().optional(), universalName: z.string().optional() }),
+  'company.get': z.object({
+    url: z.string().optional(),
+    universalName: z.string().optional(),
+  }),
   'company.employees': z.object({ universalName: z.string(), ...Pagination }),
 
   'post.engagers': z.object({
@@ -536,14 +555,21 @@ export const PARAMS = {
 
   'outreach.view': z.object({ publicId: z.string() }),
   'outreach.follow': z.object({ publicId: z.string() }),
-  'outreach.invite': z.object({ publicId: z.string(), note: z.string().optional() }),
+  'outreach.invite': z.object({
+    publicId: z.string(),
+    note: z.string().optional(),
+  }),
   'outreach.message': z.object({
     publicId: z.string(),
     body: z.string(),
     threadId: z.string().optional(),
     attachment: MessageAttachmentSchema.optional(),
   }),
-  'outreach.inmail': z.object({ publicId: z.string(), subject: z.string(), body: z.string() }),
+  'outreach.inmail': z.object({
+    publicId: z.string(),
+    subject: z.string(),
+    body: z.string(),
+  }),
   'outreach.like': z.object({ postUrl: z.string() }),
   'outreach.comment': z.object({ postUrl: z.string(), body: z.string() }),
 
@@ -552,10 +578,16 @@ export const PARAMS = {
     unreadOnly: z.boolean().optional(),
     count: z.number().int().min(1).optional(),
   }),
-  'inbox.messages': z.object({ threadId: z.string(), since: z.number().optional() }),
+  'inbox.messages': z.object({
+    threadId: z.string(),
+    since: z.number().optional(),
+  }),
   'inbox.export': z.object({ since: z.number().optional() }),
 
-  'list.create': z.object({ name: z.string(), tags: z.array(z.string()).optional() }),
+  'list.create': z.object({
+    name: z.string(),
+    tags: z.array(z.string()).optional(),
+  }),
   'list.getAll': Empty,
   'list.get': z.object({ listId: z.string() }),
   'list.add': z.object({
@@ -563,7 +595,10 @@ export const PARAMS = {
     profiles: z.array(ProfileSchema).optional(),
     publicIds: z.array(z.string()).optional(),
   }),
-  'list.remove': z.object({ listId: z.string(), publicIds: z.array(z.string()) }),
+  'list.remove': z.object({
+    listId: z.string(),
+    publicIds: z.array(z.string()),
+  }),
   'list.members': z.object({ listId: z.string(), ...Pagination }),
   'list.delete': z.object({ listId: z.string() }),
   'list.importCsv': z.object({ listId: z.string(), csv: z.string() }),
@@ -574,13 +609,19 @@ export const PARAMS = {
     listId: z.string().optional(),
     publicIds: z.array(z.string()).optional(),
     settings: z
-      .object({ stopOnReply: z.boolean().optional(), autopilot: z.boolean().optional() })
+      .object({
+        stopOnReply: z.boolean().optional(),
+        autopilot: z.boolean().optional(),
+      })
       .passthrough()
       .optional(),
   }),
   'campaign.getAll': Empty,
   'campaign.get': z.object({ campaignId: z.string() }),
-  'campaign.enroll': z.object({ campaignId: z.string(), publicIds: z.array(z.string()) }),
+  'campaign.enroll': z.object({
+    campaignId: z.string(),
+    publicIds: z.array(z.string()),
+  }),
   'campaign.pause': z.object({ campaignId: z.string() }),
   'campaign.resume': z.object({ campaignId: z.string() }),
   'campaign.delete': z.object({ campaignId: z.string() }),
@@ -624,7 +665,7 @@ export type ActionName = keyof typeof PARAMS;
 export const ACTIONS = Object.keys(PARAMS) as ActionName[];
 
 export function isAction(name: string): name is ActionName {
-  return Object.prototype.hasOwnProperty.call(PARAMS, name);
+  return Object.hasOwn(PARAMS, name);
 }
 
 /* ------------------------------------------------------------------ *
@@ -664,9 +705,7 @@ export const RESULTS: Record<ActionName, z.ZodTypeAny> = {
     count: z.number(),
     sample: z.array(z.string()).optional(),
     // Only with `scope: 'everyone'`: what the followers scan found.
-    followers: z
-      .object({ total: z.number(), stillFollowing: z.number() })
-      .optional(),
+    followers: z.object({ total: z.number(), stillFollowing: z.number() }).optional(),
   }),
   'network.unfollowAll': z.object({
     unfollowed: z.number(),
@@ -696,13 +735,19 @@ export const RESULTS: Record<ActionName, z.ZodTypeAny> = {
   'outreach.comment': WriteResultSchema,
   'inbox.threads': z.object({ threads: z.array(ThreadSchema) }),
   'inbox.messages': z.object({ messages: z.array(MessageSchema) }),
-  'inbox.export': z.object({ threads: z.array(ThreadSchema), messages: z.array(MessageSchema) }),
+  'inbox.export': z.object({
+    threads: z.array(ThreadSchema),
+    messages: z.array(MessageSchema),
+  }),
   'list.create': ListSchema,
   'list.getAll': z.object({ lists: z.array(ListSchema) }),
   'list.get': ListSchema,
   'list.add': z.object({ added: z.number(), duplicates: z.number() }),
   'list.remove': z.object({ removed: z.number() }),
-  'list.members': z.object({ members: z.array(ListMemberSchema), total: z.number() }),
+  'list.members': z.object({
+    members: z.array(ListMemberSchema),
+    total: z.number(),
+  }),
   'list.delete': z.object({ ok: z.literal(true) }),
   'list.importCsv': z.object({
     added: z.number(),
@@ -727,7 +772,11 @@ export const RESULTS: Record<ActionName, z.ZodTypeAny> = {
   }),
   'export.csv': z.object({ csv: z.string(), filename: z.string() }),
   'research.resolve': z.object({ resolved: z.array(ResolvedRowSchema) }),
-  'research.pack': z.object({ jobId: z.string(), total: z.number(), etaMs: z.number().optional() }),
+  'research.pack': z.object({
+    jobId: z.string(),
+    total: z.number(),
+    etaMs: z.number().optional(),
+  }),
   'research.get': z.object({
     jobId: z.string(),
     status: z.string(),
@@ -801,7 +850,9 @@ export const SQL_QUERY_PARAMS = z.object({
 export const SYNC_PARAMS = z.object({ since: z.number().optional() });
 
 /** `linkedin_endpoints_check` always verifies; the post is an optional probe. */
-export const ENDPOINTS_CHECK_PARAMS = z.object({ postUrl: z.string().optional() });
+export const ENDPOINTS_CHECK_PARAMS = z.object({
+  postUrl: z.string().optional(),
+});
 
 export const TOOLS: ToolDef[] = [
   {
@@ -1024,8 +1075,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: 'linkedin_campaign_resume',
     action: 'campaign.resume',
-    description:
-      'Resume a paused campaign from where it stopped. Returns the updated Campaign.',
+    description: 'Resume a paused campaign from where it stopped. Returns the updated Campaign.',
     write: true,
   },
   {

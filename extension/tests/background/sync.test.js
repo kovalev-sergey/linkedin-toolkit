@@ -10,13 +10,12 @@ import '../../src/background/sync.js';
 import { ACTIONS, ERROR, HARD_CAPS } from '../../src/lib/actions.js';
 import { getConfig } from '../../src/lib/config.js';
 import * as storage from '../../src/lib/storage.js';
-import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
-
 import companyRest from '../fixtures/voyager/companyRest.json';
 import connections from '../fixtures/voyager/connections.json';
 import conversations from '../fixtures/voyager/conversations.json';
 import profileView from '../fixtures/voyager/profileView.json';
 import searchClusters from '../fixtures/voyager/searchClusters.json';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 const NOW = new Date(2026, 8, 9, 11, 0, 0);
 
@@ -100,7 +99,9 @@ describe('status.get', () => {
   });
 
   it('reports the bridge block', async () => {
-    await handle(ACTIONS.CONFIG_SET, { bridge: { enabled: true, port: 47830 } });
+    await handle(ACTIONS.CONFIG_SET, {
+      bridge: { enabled: true, port: 47830 },
+    });
     const s = (await handle(ACTIONS.STATUS_GET, {})).data;
     expect(s.bridge).toEqual({ enabled: true, connected: false, port: 47830 });
   });
@@ -120,7 +121,9 @@ describe('status.get', () => {
       net.route('/organization/companies', companyRest);
       net.route('/relationships/dash/connections', connections);
       net.route('sentInvitationViewsV2', { elements: [] });
-      net.route('voyagerFeedDashProfileUpdates', { data: { data: { x: { elements: [] } } } });
+      net.route('voyagerFeedDashProfileUpdates', {
+        data: { data: { x: { elements: [] } } },
+      });
 
       const s = (await handle(ACTIONS.STATUS_GET, { verify: true })).data;
 
@@ -141,7 +144,9 @@ describe('status.get', () => {
       net.route('/organization/companies', companyRest);
       net.route('/relationships/dash/connections', connections);
       net.route('sentInvitationViewsV2', { elements: [] });
-      net.route('voyagerFeedDashProfileUpdates', { data: { data: { x: { elements: [] } } } });
+      net.route('voyagerFeedDashProfileUpdates', {
+        data: { data: { x: { elements: [] } } },
+      });
 
       await handle(ACTIONS.STATUS_GET, { verify: true });
 
@@ -166,20 +171,25 @@ describe('config.set', () => {
   it('clamps to the hard caps and persists', async () => {
     const res = await handle(ACTIONS.CONFIG_SET, {
       dailyInviteCap: 9999,
-      hourlyCap: 9999,
       minDelayMs: 5,
     });
     expect(res.data.dailyInviteCap).toBe(HARD_CAPS.dailyInviteCap);
-    expect(res.data.hourlyCap).toBe(50);
+    expect(res.data).not.toHaveProperty('hourlyCap');
     expect(res.data.minDelayMs).toBe(3000);
     expect((await getConfig()).dailyInviteCap).toBe(HARD_CAPS.dailyInviteCap);
   });
 
   it('merges nested blocks instead of replacing them', async () => {
-    await handle(ACTIONS.CONFIG_SET, { ai: { provider: 'anthropic', apiKey: 'k' } });
+    await handle(ACTIONS.CONFIG_SET, {
+      ai: { provider: 'anthropic', apiKey: 'k' },
+    });
     await handle(ACTIONS.CONFIG_SET, { ai: { model: 'claude-opus-5' } });
     const cfg = (await handle(ACTIONS.CONFIG_GET, {})).data;
-    expect(cfg.ai).toMatchObject({ provider: 'anthropic', apiKey: 'k', model: 'claude-opus-5' });
+    expect(cfg.ai).toMatchObject({
+      provider: 'anthropic',
+      apiKey: 'k',
+      model: 'claude-opus-5',
+    });
   });
 
   it('keeps the enrichment block and rejects an unknown provider', async () => {
@@ -188,7 +198,9 @@ describe('config.set', () => {
     });
     expect(res.data.enrichment).toEqual({ provider: 'hunter', apiKey: 'hk' });
 
-    const bad = await handle(ACTIONS.CONFIG_SET, { enrichment: { provider: 'nope' } });
+    const bad = await handle(ACTIONS.CONFIG_SET, {
+      enrichment: { provider: 'nope' },
+    });
     expect(bad.data.enrichment.provider).toBe('none');
   });
 
@@ -196,7 +208,10 @@ describe('config.set', () => {
     await quota.noteBackoff(451);
     expect((await quota.pauseState()).challenge).toBeTruthy();
 
-    const res = await handle(ACTIONS.CONFIG_SET, { clearChallenge: true, autopilot: true });
+    const res = await handle(ACTIONS.CONFIG_SET, {
+      clearChallenge: true,
+      autopilot: true,
+    });
     expect((await quota.pauseState()).challenge).toBeUndefined();
     expect(res.data.autopilot).toBe(true);
     expect(res.data.clearChallenge).toBeUndefined();
@@ -247,11 +262,7 @@ describe('config.set from a non-popup origin', () => {
   });
 
   it('the popup may set all of them, and gets no ignoredKeys', async () => {
-    const res = await handle(
-      ACTIONS.CONFIG_SET,
-      { autopilot: true, dailyInviteCap: 100 },
-      'popup',
-    );
+    const res = await handle(ACTIONS.CONFIG_SET, { autopilot: true, dailyInviteCap: 100 }, 'popup');
     expect(res.data.autopilot).toBe(true);
     expect(res.data.dailyInviteCap).toBe(100);
     expect(res.data.ignoredKeys).toBeUndefined();
@@ -333,11 +344,22 @@ describe('export.csv', () => {
   });
 
   it("kind 'list' exports the members with their derived columns", async () => {
-    const list = (await handle(ACTIONS.LIST_CREATE, { name: 'Targets', tags: ['company:Analytical Engines'] })).data;
+    const list = (
+      await handle(ACTIONS.LIST_CREATE, {
+        name: 'Targets',
+        tags: ['company:Analytical Engines'],
+      })
+    ).data;
     await handle(ACTIONS.LIST_ADD, { listId: list.listId, profiles: [ada] });
-    await storage.logAction({ action: ACTIONS.OUTREACH_MESSAGE, publicId: 'adalovelace' });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_MESSAGE,
+      publicId: 'adalovelace',
+    });
 
-    const res = await handle(ACTIONS.EXPORT_CSV, { kind: 'list', id: list.listId });
+    const res = await handle(ACTIONS.EXPORT_CSV, {
+      kind: 'list',
+      id: list.listId,
+    });
     expect(res.data.count).toBe(1);
     expect(res.data.filename).toMatch(/^linkedin_list_\d{4}-\d{2}-\d{2}\.csv$/);
     expect(res.data.csv.split('\n')[0]).toContain('Contacted Before');
@@ -371,7 +393,10 @@ describe('export.csv', () => {
       result: { status: 'sent' },
     });
 
-    const res = await handle(ACTIONS.EXPORT_CSV, { kind: 'campaign', id: c.campaignId });
+    const res = await handle(ACTIONS.EXPORT_CSV, {
+      kind: 'campaign',
+      id: c.campaignId,
+    });
     expect(res.data.csv.split('\n')[0]).toContain('Actions Sent');
     expect(res.data.csv).toContain('adalovelace');
     expect(res.data.csv).toContain('Ada Lovelace');
@@ -398,7 +423,10 @@ describe('export.csv', () => {
 
   it('downloads through chrome.downloads with a data: URL when asked', async () => {
     await storage.putProfile(ada);
-    const res = await handle(ACTIONS.EXPORT_CSV, { kind: 'profiles', download: true });
+    const res = await handle(ACTIONS.EXPORT_CSV, {
+      kind: 'profiles',
+      download: true,
+    });
 
     expect(res.data.downloaded).toBe(true);
     expect(chrome.__mock.downloads).toHaveLength(1);
@@ -422,17 +450,19 @@ describe('export.csv', () => {
 describe('sync.pull', () => {
   it('returns every collection the contract names', async () => {
     const res = await handle(ACTIONS.SYNC_PULL, {});
-    expect(Object.keys(res.data).sort()).toEqual([
-      'actions',
-      'campaigns',
-      'enrollments',
-      'events',
-      'lists',
-      'listMembers',
-      'messages',
-      'profiles',
-      'threads',
-    ].sort());
+    expect(Object.keys(res.data).sort()).toEqual(
+      [
+        'actions',
+        'campaigns',
+        'enrollments',
+        'events',
+        'lists',
+        'listMembers',
+        'messages',
+        'profiles',
+        'threads',
+      ].sort(),
+    );
     for (const value of Object.values(res.data)) expect(Array.isArray(value)).toBe(true);
   });
 
@@ -441,8 +471,15 @@ describe('sync.pull', () => {
     await storage.putProfile(ada);
     const list = (await handle(ACTIONS.LIST_CREATE, { name: 'Early' })).data;
     await handle(ACTIONS.LIST_ADD, { listId: list.listId, profiles: [ada] });
-    await handle(ACTIONS.CAMPAIGN_CREATE, { name: 'Early', steps: [], publicIds: ['adalovelace'] });
-    await storage.logAction({ action: ACTIONS.OUTREACH_VIEW, publicId: 'adalovelace' });
+    await handle(ACTIONS.CAMPAIGN_CREATE, {
+      name: 'Early',
+      steps: [],
+      publicIds: ['adalovelace'],
+    });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_VIEW,
+      publicId: 'adalovelace',
+    });
 
     const all = (await handle(ACTIONS.SYNC_PULL, {})).data;
     expect(all.profiles).toHaveLength(1);
@@ -471,7 +508,11 @@ describe('sync.pull', () => {
     const list = (await handle(ACTIONS.LIST_CREATE, { name: 'L' })).data;
     await handle(ACTIONS.LIST_ADD, { listId: list.listId, profiles: [ada] });
     const c = (
-      await handle(ACTIONS.CAMPAIGN_CREATE, { name: 'C', steps: [], publicIds: ['adalovelace'] })
+      await handle(ACTIONS.CAMPAIGN_CREATE, {
+        name: 'C',
+        steps: [],
+        publicIds: ['adalovelace'],
+      })
     ).data;
 
     const out = (await handle(ACTIONS.SYNC_PULL, {})).data;

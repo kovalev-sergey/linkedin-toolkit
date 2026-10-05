@@ -1,17 +1,14 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-import { ACTIONS, ERROR } from '../../src/lib/actions.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  EngineError,
   handle,
   register,
-  setRateLimitProvider,
   resetEngine,
-  EngineError,
+  setRateLimitProvider,
 } from '../../src/background/engine.js';
+import { ACTIONS, ERROR } from '../../src/lib/actions.js';
 
 const RATE_LIMIT = {
-  hourlyUsed: 3,
-  hourlyCap: 20,
   dailyUsed: 7,
   dailyCap: 25,
   nextAllowedAt: 0,
@@ -31,12 +28,15 @@ describe('handle', () => {
 
   it('rejects bad params for a known action with INVALID_PARAMS', async () => {
     register(ACTIONS.SEARCH_PEOPLE, async () => ({ profiles: [] }));
-    const res = await handle(ACTIONS.SEARCH_PEOPLE, { keywords: 'x', count: 500 });
+    const res = await handle(ACTIONS.SEARCH_PEOPLE, {
+      keywords: 'x',
+      count: 500,
+    });
     expect(res.ok).toBe(false);
     expect(res.error.code).toBe(ERROR.INVALID_PARAMS);
   });
 
-  it('carries the validator\'s howToFix onto the error envelope', async () => {
+  it("carries the validator's howToFix onto the error envelope", async () => {
     register(ACTIONS.OUTREACH_INVITE, async () => ({}));
     const res = await handle(ACTIONS.OUTREACH_INVITE, {
       publicId: 'dom',
@@ -108,9 +108,15 @@ describe('handle', () => {
 
   it('folds EngineError extra fields into the error', async () => {
     register(ACTIONS.OUTREACH_MESSAGE, async () => {
-      throw new EngineError(ERROR.RATE_LIMITED, 'slow', { retryAfter: 60, howToFix: 'wait' });
+      throw new EngineError(ERROR.RATE_LIMITED, 'slow', {
+        retryAfter: 60,
+        howToFix: 'wait',
+      });
     });
-    const res = await handle(ACTIONS.OUTREACH_MESSAGE, { publicId: 'd', body: 'b' });
+    const res = await handle(ACTIONS.OUTREACH_MESSAGE, {
+      publicId: 'd',
+      body: 'b',
+    });
     expect(res.error).toEqual({
       code: 'RATE_LIMITED',
       message: 'slow',
@@ -164,7 +170,11 @@ describe('rateLimit', () => {
     register(ACTIONS.OUTREACH_INMAIL, async () => ({ status: 'sent' }));
     register(ACTIONS.OUTREACH_VIEW, async () => ({ status: 'sent' }));
 
-    await handle(ACTIONS.OUTREACH_INMAIL, { publicId: 'd', subject: 's', body: 'b' });
+    await handle(ACTIONS.OUTREACH_INMAIL, {
+      publicId: 'd',
+      subject: 's',
+      body: 'b',
+    });
     expect(provider).toHaveBeenLastCalledWith('message');
 
     await handle(ACTIONS.OUTREACH_VIEW, { publicId: 'd' });

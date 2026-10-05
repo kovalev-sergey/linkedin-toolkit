@@ -1,20 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ACTIONS } from '../../src/lib/actions.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handle } from '../../src/background/engine.js';
-import { setConfig } from '../../src/lib/config.js';
-import * as events from '../../src/background/events.js';
 import * as enrich from '../../src/background/enrich.js';
+import * as events from '../../src/background/events.js';
+import '../../src/background/outreach.js';
 import * as quota from '../../src/background/quota.js';
 import * as research from '../../src/background/research.js';
+import { ACTIONS } from '../../src/lib/actions.js';
+import { setConfig } from '../../src/lib/config.js';
 import * as storage from '../../src/lib/storage.js';
-import '../../src/background/outreach.js';
-import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
-
-import profileView from '../fixtures/voyager/profileView.json';
-import searchClusters from '../fixtures/voyager/searchClusters.json';
 import company from '../fixtures/voyager/company.json';
 import memberPosts from '../fixtures/voyager/memberPosts.json';
 import mutualConnections from '../fixtures/voyager/mutualConnections.json';
+import profileView from '../fixtures/voyager/profileView.json';
+import searchClusters from '../fixtures/voyager/searchClusters.json';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 let net;
 let seen;
@@ -29,7 +28,7 @@ beforeEach(async () => {
   events.setSink((f) => seen.push(f));
   // A pack row costs two profile reads (the profile itself, then the
   // connection check), so give the hour enough room for a full tick.
-  await setConfig({ accountPreset: 'recruiter', businessHoursOnly: false, hourlyCap: 50 });
+  await setConfig({ accountPreset: 'recruiter', businessHoursOnly: false });
   net.route('sentInvitationViewsV2', { elements: [] });
 });
 
@@ -84,7 +83,10 @@ describe('research.resolve', () => {
     const res = await handle(ACTIONS.RESEARCH_RESOLVE, {
       rows: [{ name: 'Ada Lovelace', company: 'Analytical Engines' }],
     });
-    expect(res.data.resolved[0]).toMatchObject({ kind: 'person', publicId: 'adalovelace' });
+    expect(res.data.resolved[0]).toMatchObject({
+      kind: 'person',
+      publicId: 'adalovelace',
+    });
     expect(res.data.resolved[0].confidence).toBeGreaterThanOrEqual(0.85);
   });
 
@@ -171,10 +173,22 @@ describe('research.resolve', () => {
   it('resolves a person whose headline never mentions the company', async () => {
     // Reid Hoffman's headline does not say "Greylock". Requiring it there
     // meant refusing to resolve him at all.
-    net.push(searchWith([{ publicId: 'someoneelse', fullName: 'Rita Hoffmeyer', headline: 'CFO' }]));
     net.push(
       searchWith([
-        { publicId: 'someoneelse', fullName: 'Rita Hoffmeyer', headline: 'CFO' },
+        {
+          publicId: 'someoneelse',
+          fullName: 'Rita Hoffmeyer',
+          headline: 'CFO',
+        },
+      ]),
+    );
+    net.push(
+      searchWith([
+        {
+          publicId: 'someoneelse',
+          fullName: 'Rita Hoffmeyer',
+          headline: 'CFO',
+        },
         {
           publicId: 'reidhoffman',
           fullName: 'Reid Hoffman',
@@ -189,18 +203,31 @@ describe('research.resolve', () => {
 
     // Two searches: the narrow one first, then the name on its own.
     expect(net.calls.filter((c) => c.url.includes('voyagerSearchDashClusters'))).toHaveLength(2);
-    expect(res.data.resolved[0]).toMatchObject({ kind: 'person', publicId: 'reidhoffman' });
+    expect(res.data.resolved[0]).toMatchObject({
+      kind: 'person',
+      publicId: 'reidhoffman',
+    });
   });
 
   it('hands two plausible namesakes back to the human rather than guessing', async () => {
     const twins = searchWith([
-      { publicId: 'reidhoffman', fullName: 'Reid Hoffman', headline: 'Partner' },
-      { publicId: 'reid-hoffman-2', fullName: 'Reid Hoffman', headline: 'Analyst' },
+      {
+        publicId: 'reidhoffman',
+        fullName: 'Reid Hoffman',
+        headline: 'Partner',
+      },
+      {
+        publicId: 'reid-hoffman-2',
+        fullName: 'Reid Hoffman',
+        headline: 'Analyst',
+      },
     ]);
     net.push(twins);
     net.push(twins);
 
-    const res = await handle(ACTIONS.RESEARCH_RESOLVE, { rows: [{ name: 'Reid Hoffman' }] });
+    const res = await handle(ACTIONS.RESEARCH_RESOLVE, {
+      rows: [{ name: 'Reid Hoffman' }],
+    });
     const row = res.data.resolved[0];
     expect(row.kind).toBe('unresolved');
     expect(row.candidates.map((c) => c.publicId)).toEqual(['reidhoffman', 'reid-hoffman-2']);
@@ -215,7 +242,10 @@ describe('research.resolve', () => {
     const res = await handle(ACTIONS.RESEARCH_RESOLVE, {
       rows: [{ name: 'Satya Nadella', company: 'Microsoft' }],
     });
-    expect(res.data.resolved[0]).toMatchObject({ kind: 'unresolved', candidates: [] });
+    expect(res.data.resolved[0]).toMatchObject({
+      kind: 'unresolved',
+      candidates: [],
+    });
     expect(net.calls.some((c) => c.url.includes('/organization/companies'))).toBe(false);
   });
 
@@ -246,8 +276,13 @@ describe('research.resolve', () => {
   });
 
   it('reports a row it cannot place at all', async () => {
-    const res = await handle(ACTIONS.RESEARCH_RESOLVE, { rows: [{ name: 'Nobody' }] });
-    expect(res.data.resolved[0]).toMatchObject({ kind: 'unresolved', confidence: 0 });
+    const res = await handle(ACTIONS.RESEARCH_RESOLVE, {
+      rows: [{ name: 'Nobody' }],
+    });
+    expect(res.data.resolved[0]).toMatchObject({
+      kind: 'unresolved',
+      confidence: 0,
+    });
   });
 });
 
@@ -260,7 +295,11 @@ describe('signals', () => {
         experience: [{ title: 'Chief', company: 'AE', start: Date.now() - 10 * DAY }],
         engagedWithPost: true,
       },
-      company: { followerCount: 18400, size: '201-500', description: 'We are hiring analysts.' },
+      company: {
+        followerCount: 18400,
+        size: '201-500',
+        description: 'We are hiring analysts.',
+      },
       posts: [{ postedAt: Date.now() - 3 * DAY }],
       mutualConnections: 37,
       connectionStatus: 'connected',
@@ -387,7 +426,12 @@ describe('research.pack end to end', () => {
 
   it('writes a csvRow carrying the input columns and the resolution', async () => {
     const started = await handle(ACTIONS.RESEARCH_PACK, {
-      rows: [{ linkedinUrl: 'https://www.linkedin.com/in/adalovelace/', ownerNote: 'from event' }],
+      rows: [
+        {
+          linkedinUrl: 'https://www.linkedin.com/in/adalovelace/',
+          ownerNote: 'from event',
+        },
+      ],
     });
     pushOneRow();
     await research.progress();
@@ -445,7 +489,9 @@ describe('research.pack end to end', () => {
 
 describe('pacing', () => {
   const rows = (n) =>
-    Array.from({ length: n }, (_, i) => ({ linkedinUrl: `https://www.linkedin.com/in/p${i}/` }));
+    Array.from({ length: n }, (_, i) => ({
+      linkedinUrl: `https://www.linkedin.com/in/p${i}/`,
+    }));
 
   function pushRows(n) {
     for (let i = 0; i < n; i += 1) {
@@ -475,7 +521,7 @@ describe('pacing', () => {
 
   it('pauses when the visit quota runs out mid-job and resumes the next day', async () => {
     // A row costs two profile reads, so a cap of two leaves room for exactly one.
-    await setConfig({ accountPreset: 'free', dailyVisitCap: 2, hourlyCap: 50 });
+    await setConfig({ accountPreset: 'free', dailyVisitCap: 2 });
     const started = await handle(ACTIONS.RESEARCH_PACK, { rows: rows(4) });
     pushRows(4);
 
@@ -605,8 +651,16 @@ describe('enrichment', () => {
   });
 
   it('reads Hunter’s answer into the contract shape', async () => {
-    await setConfig({ enrichment: { provider: 'hunter', apiKey: 'hunter-key' } });
-    net.push({ data: { email: 'ada@analytical-engines.com', phone_number: '+44 20', score: 94 } });
+    await setConfig({
+      enrichment: { provider: 'hunter', apiKey: 'hunter-key' },
+    });
+    net.push({
+      data: {
+        email: 'ada@analytical-engines.com',
+        phone_number: '+44 20',
+        score: 94,
+      },
+    });
 
     const out = await enrich.lookupEmail(
       { firstName: 'Ada', lastName: 'Lovelace' },
@@ -632,9 +686,9 @@ describe('enrichment', () => {
   });
 
   it('derives the domain from the company website', () => {
-    expect(enrich.domainFor({}, { website: 'https://www.analytical-engines.example/careers' })).toBe(
-      'analytical-engines.example',
-    );
+    expect(
+      enrich.domainFor({}, { website: 'https://www.analytical-engines.example/careers' }),
+    ).toBe('analytical-engines.example');
     expect(enrich.domainFor({}, {})).toBe('');
   });
 });

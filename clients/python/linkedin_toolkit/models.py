@@ -184,8 +184,6 @@ class WriteResult(Base):
 
 
 class RateLimit(Base):
-    hourlyUsed: int
-    hourlyCap: int
     dailyUsed: int
     dailyCap: int
     nextAllowedAt: float

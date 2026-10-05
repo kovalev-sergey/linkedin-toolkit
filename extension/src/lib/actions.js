@@ -278,12 +278,10 @@ export const UNFOLLOW_STOPPED = Object.freeze(['limit', 'end', 'error', 'cancell
 
 /** Floors and ceilings that are not part of HARD_CAPS but are still enforced. */
 const MIN_DELAY_MS = 3000;
-const MAX_HOURLY_CAP = 50;
 
 export const DEFAULT_CONFIG = {
   minDelayMs: 8000,
   maxDelayMs: 15000,
-  hourlyCap: 20,
   dailyInviteCap: 25,
   dailyMessageCap: 50,
   dailyVisitCap: 100,
@@ -407,8 +405,12 @@ const PARAM_SPECS = {
     optional: { start: 'number', count: 'number' },
   },
 
-  [ACTIONS.NETWORK_CONNECTIONS]: { optional: { start: 'number', count: 'number' } },
-  [ACTIONS.NETWORK_FOLLOWERS]: { optional: { start: 'number', count: 'number' } },
+  [ACTIONS.NETWORK_CONNECTIONS]: {
+    optional: { start: 'number', count: 'number' },
+  },
+  [ACTIONS.NETWORK_FOLLOWERS]: {
+    optional: { start: 'number', count: 'number' },
+  },
   [ACTIONS.NETWORK_STATUS]: { required: { publicIds: 'array' } },
   [ACTIONS.NETWORK_UNFOLLOW_COUNT]: {
     optional: { mode: 'string', scope: 'string' },
@@ -427,7 +429,11 @@ const PARAM_SPECS = {
       scope: 'string',
       speed: 'string',
     },
-    enums: { mode: UNFOLLOW_MODES, scope: UNFOLLOW_SCOPES, speed: UNFOLLOW_SPEEDS },
+    enums: {
+      mode: UNFOLLOW_MODES,
+      scope: UNFOLLOW_SCOPES,
+      speed: UNFOLLOW_SPEEDS,
+    },
     min: { limit: UNFOLLOW_LIMIT_MIN },
     max: { limit: UNFOLLOW_LIMIT_MAX },
     fix: { limit: UNFOLLOW_LIMIT_FIX },
@@ -496,7 +502,9 @@ const PARAM_SPECS = {
   },
   [ACTIONS.CAMPAIGN_GET_ALL]: {},
   [ACTIONS.CAMPAIGN_GET]: { required: { campaignId: 'string' } },
-  [ACTIONS.CAMPAIGN_ENROLL]: { required: { campaignId: 'string', publicIds: 'array' } },
+  [ACTIONS.CAMPAIGN_ENROLL]: {
+    required: { campaignId: 'string', publicIds: 'array' },
+  },
   [ACTIONS.CAMPAIGN_PAUSE]: { required: { campaignId: 'string' } },
   [ACTIONS.CAMPAIGN_RESUME]: { required: { campaignId: 'string' } },
   [ACTIONS.CAMPAIGN_DELETE]: { required: { campaignId: 'string' } },
@@ -554,9 +562,7 @@ function checkType(field, value, expected) {
  * @returns {{ok: true} | {ok: false, message: string, howToFix?: string}}
  */
 export function validateParams(action, params = {}) {
-  const spec = Object.prototype.hasOwnProperty.call(PARAM_SPECS, action)
-    ? PARAM_SPECS[action]
-    : null;
+  const spec = Object.hasOwn(PARAM_SPECS, action) ? PARAM_SPECS[action] : null;
   if (!spec) return { ok: false, message: 'unknown action' };
 
   const p = params && typeof params === 'object' && !Array.isArray(params) ? params : null;
@@ -598,7 +604,10 @@ export function validateParams(action, params = {}) {
   for (const [field, allowed] of Object.entries(enums)) {
     if (p[field] === undefined || p[field] === null) continue;
     if (!allowed.includes(p[field])) {
-      return { ok: false, message: `${field} must be one of: ${allowed.join(', ')}` };
+      return {
+        ok: false,
+        message: `${field} must be one of: ${allowed.join(', ')}`,
+      };
     }
   }
 
@@ -628,7 +637,10 @@ export function validateParams(action, params = {}) {
   }
 
   if (spec.anyOf && !spec.anyOf.some((f) => p[f] !== undefined && p[f] !== null)) {
-    return { ok: false, message: `one of ${spec.anyOf.join(' or ')} is required` };
+    return {
+      ok: false,
+      message: `one of ${spec.anyOf.join(' or ')} is required`,
+    };
   }
 
   return { ok: true };
@@ -672,7 +684,6 @@ export function clampConfig(cfg = {}) {
   const out = {
     minDelayMs,
     maxDelayMs,
-    hourlyCap: clampInt(input.hourlyCap, d.hourlyCap, 0, MAX_HOURLY_CAP),
     dailyInviteCap: clampInt(input.dailyInviteCap, d.dailyInviteCap, 0, HARD_CAPS.dailyInviteCap),
     dailyMessageCap: clampInt(
       input.dailyMessageCap,

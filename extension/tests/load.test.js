@@ -21,14 +21,14 @@
  * jsdom, rather than the default node environment, because the content scripts
  * and the popup modules touch `document` as they load.
  */
-import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve, join, relative, sep } from 'node:path';
 
-import { ACTIONS } from '../src/lib/actions.js';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 import { registeredActions } from '../src/background/engine.js';
 import { route } from '../src/background/index.js';
+import { ACTIONS } from '../src/lib/actions.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const srcDir = resolve(here, '../src');
@@ -89,10 +89,9 @@ describe('the service worker registers the documented contract', () => {
       // Most will fail on missing params or a stubbed network — that is fine.
       // What must never happen is the router not knowing the action at all.
       if (!res.ok) {
-        expect(
-          res.error.message,
-          `${action} was not recognised by the router`,
-        ).not.toMatch(/unknown action/i);
+        expect(res.error.message, `${action} was not recognised by the router`).not.toMatch(
+          /unknown action/i,
+        );
       }
     }
   });
@@ -110,7 +109,7 @@ describe('status.get', () => {
 
     expect(Object.keys(status.quotas).sort()).toEqual(['invite', 'message', 'search', 'visit']);
     for (const [kind, quota] of Object.entries(status.quotas)) {
-      for (const field of ['hourlyUsed', 'hourlyCap', 'dailyUsed', 'dailyCap', 'nextAllowedAt']) {
+      for (const field of ['dailyUsed', 'dailyCap', 'nextAllowedAt']) {
         expect(typeof quota[field], `quotas.${kind}.${field}`).toBe('number');
       }
     }

@@ -129,7 +129,10 @@ export function toCsv(rows: Record<string, unknown>[], columns?: string[]): stri
     const text = typeof value === 'object' ? JSON.stringify(value) : String(value);
     return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
-  return [keys.join(','), ...rows.map((row) => keys.map((key) => cell(row[key])).join(','))].join('\n') + '\n';
+  return (
+    [keys.join(','), ...rows.map((row) => keys.map((key) => cell(row[key])).join(','))].join('\n') +
+    '\n'
+  );
 }
 
 /** A small RFC-4180-ish reader: quoted fields, doubled quotes, CRLF. */
@@ -210,8 +213,13 @@ export function table(rows: Record<string, unknown>[], columns: string[]): strin
     Math.max(column.length, ...text.map((row) => row[index].length)),
   );
   const line = (cells: string[]) =>
-    cells.map((cell, index) => cell.padEnd(widths[index])).join('  ').trimEnd();
-  return [line(columns), line(widths.map((width) => '-'.repeat(width))), ...text.map(line)].join('\n');
+    cells
+      .map((cell, index) => cell.padEnd(widths[index]))
+      .join('  ')
+      .trimEnd();
+  return [line(columns), line(widths.map((width) => '-'.repeat(width))), ...text.map(line)].join(
+    '\n',
+  );
 }
 
 /* ------------------------------------------------------------------ *
@@ -232,7 +240,9 @@ export type SettableKey = (typeof SETTABLE_KEYS)[number];
 /** Show only the last four characters, so a shoulder or a screen share leaks nothing. */
 export function maskToken(token: string): string {
   if (!token) return '';
-  return token.length <= 4 ? '*'.repeat(token.length) : `${'*'.repeat(token.length - 4)}${token.slice(-4)}`;
+  return token.length <= 4
+    ? '*'.repeat(token.length)
+    : `${'*'.repeat(token.length - 4)}${token.slice(-4)}`;
 }
 
 /** Parse and validate one `lit config set` value. Throws CliError on bad input. */
@@ -257,7 +267,9 @@ export function coerceSetting(key: string, raw: string): { key: SettableKey; val
   if (settable === 'researchTimeoutMs') {
     const ms = Number(raw);
     if (!Number.isInteger(ms) || ms < 1000) {
-      throw new CliError(`researchTimeoutMs must be a whole number of at least 1000, not "${raw}".`);
+      throw new CliError(
+        `researchTimeoutMs must be a whole number of at least 1000, not "${raw}".`,
+      );
     }
     return { key: settable, value: ms };
   }
@@ -328,7 +340,10 @@ export class ServerClient {
     const envelope = (await response.json().catch(() => null)) as any;
     if (!envelope) throw new CliError(`The server returned ${response.status} with no body.`);
     if (envelope.ok === true) return envelope.data;
-    const error = envelope.error ?? { code: 'INTERNAL', message: 'Unknown error.' };
+    const error = envelope.error ?? {
+      code: 'INTERNAL',
+      message: 'Unknown error.',
+    };
     const parts = [`${error.code}: ${error.message}`];
     if (error.howToFix) parts.push(`  ${error.howToFix}`);
     if (error.retryAfter) parts.push(`  retry after ${error.retryAfter}s`);
@@ -343,7 +358,11 @@ export class ServerClient {
     return this.post(`/tools/${tool}`, args);
   }
 
-  async health(): Promise<{ ok: boolean; extensionConnected: boolean; version: string }> {
+  async health(): Promise<{
+    ok: boolean;
+    extensionConnected: boolean;
+    version: string;
+  }> {
     try {
       const response = await fetch(`${this.baseUrl}/health`);
       return (await response.json()) as any;
@@ -365,7 +384,12 @@ export type ServeHandles = {
 };
 
 export async function serve(
-  options: { http?: boolean; port?: number; bridgePort?: number; fake?: boolean },
+  options: {
+    http?: boolean;
+    port?: number;
+    bridgePort?: number;
+    fake?: boolean;
+  },
   io: Io,
 ): Promise<ServeHandles> {
   const { config } = loadConfig();
@@ -388,7 +412,10 @@ export async function serve(
   // exactly the same path a real extension would.
   let fake: FakeExtensionClient | undefined;
   if (options.fake) {
-    fake = new FakeExtensionClient({ port: toolkit.bridge.port, token: merged.token });
+    fake = new FakeExtensionClient({
+      port: toolkit.bridge.port,
+      token: merged.token,
+    });
     fake.setHandlers(createDemoHandlers((event, payload) => fake!.emit(event, payload)));
     await fake.connect();
     say('\nDemo extension connected. No pairing needed in fake mode.');
@@ -502,11 +529,7 @@ async function openServerForPairing(): Promise<SetupServer> {
  * config for whichever client was asked for. Each step reports what it did,
  * including when it did nothing.
  */
-export async function runSetup(
-  options: SetupOptions,
-  io: Io,
-  deps: SetupDeps = {},
-): Promise<void> {
+export async function runSetup(options: SetupOptions, io: Io, deps: SetupDeps = {}): Promise<void> {
   const fs = deps.fs ?? realFs;
   const platform = deps.platform ?? process.platform;
   const env = deps.env ?? process.env;
@@ -715,7 +738,10 @@ async function saveToList(
   const { lists } = await api.action('list.getAll', {});
   const existing = (lists ?? []).find((list: any) => list.name === listName);
   const list = existing ?? (await api.action('list.create', { name: listName }));
-  const result = await api.action('list.add', { listId: list.listId, profiles });
+  const result = await api.action('list.add', {
+    listId: list.listId,
+    profiles,
+  });
   io.out(`Saved ${result.added} to list "${listName}" (${result.duplicates} already there).`);
 }
 
@@ -740,14 +766,12 @@ export function buildProgram(io: Io = defaultIo): Command {
 
   program
     .command('setup')
-    .description(
-      'Install the extension, pair it, and write your agent\'s MCP config. Start here.',
-    )
+    .description("Install the extension, pair it, and write your agent's MCP config. Start here.")
     .option('--dir <path>', 'where to unpack the extension (default ~/.linkedin-toolkit/extension)')
     .option('--no-open', 'do not ask Chrome to open chrome://extensions')
     .option('--dry-run', 'say what would happen, and write nothing')
     .option('--client <client>', `write the MCP config for: ${CLIENTS.join(' | ')}`, 'print')
-    .option('--version <version>', 'install a specific release instead of this package\'s version')
+    .option('--version <version>', "install a specific release instead of this package's version")
     .option(
       '--wait <seconds>',
       `how long to wait for the extension to pair (default ${DEFAULT_WAIT_SECONDS}, 0 to skip)`,
@@ -804,7 +828,9 @@ export function buildProgram(io: Io = defaultIo): Command {
         io.out('Server:    running');
         io.out('Extension: NOT CONNECTED');
         io.out('');
-        io.out('Open the toolkit popup in Chrome, go to Settings → Local bridge, paste the pairing');
+        io.out(
+          'Open the toolkit popup in Chrome, go to Settings → Local bridge, paste the pairing',
+        );
         io.out('token from ~/.linkedin-toolkit/config.json and enable the bridge.');
         return;
       }
@@ -820,10 +846,9 @@ export function buildProgram(io: Io = defaultIo): Command {
           table(
             Object.entries(status.quotas ?? {}).map(([kind, quota]: [string, any]) => ({
               quota: kind,
-              hourly: `${quota.hourlyUsed}/${quota.hourlyCap}`,
               daily: `${quota.dailyUsed}/${quota.dailyCap}`,
             })),
-            ['quota', 'hourly', 'daily'],
+            ['quota', 'daily'],
           ),
           '',
           `Queue:     ${status.queue?.pending ?? 0} pending`,
@@ -892,12 +917,13 @@ export function buildProgram(io: Io = defaultIo): Command {
     .option('--json', 'print raw JSON')
     .action(async (postUrl, options) => {
       const api = client();
-      const data = await api.action('post.engagers', { postUrl, kind: options.kind });
+      const data = await api.action('post.engagers', {
+        postUrl,
+        kind: options.kind,
+      });
       const engagers = data.engagers ?? [];
       if (options.list) await saveToList(api, options.list, engagers, io);
-      print(io, options.json, data, () =>
-        table(engagers, [...PROFILE_COLUMNS, 'reaction']),
-      );
+      print(io, options.json, data, () => table(engagers, [...PROFILE_COLUMNS, 'reaction']));
     });
 
   program
@@ -911,7 +937,7 @@ export function buildProgram(io: Io = defaultIo): Command {
       const universalName = universalNameFrom(url);
       const company = await api.action('company.get', { universalName });
       const employees = options.employees
-        ? (await api.action('company.employees', { universalName })).profiles ?? []
+        ? ((await api.action('company.employees', { universalName })).profiles ?? [])
         : [];
       print(io, options.json, options.employees ? { company, employees } : company, () =>
         [
@@ -929,7 +955,7 @@ export function buildProgram(io: Io = defaultIo): Command {
     .command('invite')
     .argument('<url>', 'profile URL or publicId')
     .description('Send a connection invite (queued for approval in Copilot mode).')
-    .option('--note <note>', 'a note, at most 200 characters (LinkedIn\'s limit)')
+    .option('--note <note>', "a note, at most 200 characters (LinkedIn's limit)")
     .option('--dry-run', 'show what would be sent without sending it')
     .action(async (url, options) => {
       const data = await client().action('outreach.invite', {
@@ -981,7 +1007,13 @@ export function buildProgram(io: Io = defaultIo): Command {
         sentiment: thread.sentiment ?? '',
         snippet: thread.snippet,
       }));
-      const columns = ['threadId', 'who', 'unread', ...(options.sentiment ? ['sentiment'] : []), 'snippet'];
+      const columns = [
+        'threadId',
+        'who',
+        'unread',
+        ...(options.sentiment ? ['sentiment'] : []),
+        'snippet',
+      ];
       print(io, options.json, data, () => table(threads, columns));
     });
 
@@ -992,10 +1024,7 @@ export function buildProgram(io: Io = defaultIo): Command {
     .argument('[action]', 'approve | reject | list', 'list')
     .argument('[ids...]', 'queue item ids')
     .description('Show the approval queue, or approve or reject items.')
-    .option(
-      '--status <status>',
-      `filter the list: ${QUEUE_STATUSES.join(' | ')} (default pending)`,
-    )
+    .option('--status <status>', `filter the list: ${QUEUE_STATUSES.join(' | ')} (default pending)`)
     .option('--json', 'print raw JSON')
     .action(async (action, ids: string[], options) => {
       const api = client();
@@ -1054,7 +1083,9 @@ export function buildProgram(io: Io = defaultIo): Command {
       const parsed = JSON.parse(readFileSync(resolve(options.from), 'utf8'));
       const steps = Array.isArray(parsed) ? parsed : parsed.steps;
       if (!Array.isArray(steps)) throw new CliError(`${options.from} has no steps array.`);
-      const name = Array.isArray(parsed) ? `Campaign ${new Date().toISOString().slice(0, 10)}` : parsed.name;
+      const name = Array.isArray(parsed)
+        ? `Campaign ${new Date().toISOString().slice(0, 10)}`
+        : parsed.name;
 
       let listId: string | undefined;
       if (options.list) {
@@ -1069,8 +1100,12 @@ export function buildProgram(io: Io = defaultIo): Command {
         ...(listId ? { listId } : {}),
         ...(parsed.settings ? { settings: parsed.settings } : {}),
       });
-      print(io, options.json, data, () =>
-        `Created campaign "${data.name}" (${data.campaignId}) with ${steps.length} steps, status ${data.status}.`,
+      print(
+        io,
+        options.json,
+        data,
+        () =>
+          `Created campaign "${data.name}" (${data.campaignId}) with ${steps.length} steps, status ${data.status}.`,
       );
     });
 
@@ -1238,7 +1273,7 @@ export function buildProgram(io: Io = defaultIo): Command {
 
   const configCommand = program
     .command('config')
-    .description('Read and change this server\'s local settings (~/.linkedin-toolkit/config.json).');
+    .description("Read and change this server's local settings (~/.linkedin-toolkit/config.json).");
 
   configCommand
     .command('get')

@@ -79,8 +79,6 @@ export function clickText(root, text, selector = 'button') {
 /* ================================================================== */
 
 export const rateLimit = (used = 0, cap = 25) => ({
-  hourlyUsed: Math.min(used, 5),
-  hourlyCap: 20,
   dailyUsed: used,
   dailyCap: cap,
   nextAllowedAt: 0,
@@ -109,7 +107,6 @@ export function configFixture(overrides = {}) {
   return {
     minDelayMs: 8000,
     maxDelayMs: 15000,
-    hourlyCap: 20,
     dailyInviteCap: 25,
     dailyMessageCap: 50,
     dailyVisitCap: 200,

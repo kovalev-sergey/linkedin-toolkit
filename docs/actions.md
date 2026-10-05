@@ -84,11 +84,11 @@ type Pack = { row: ResearchRow; resolved: ResolvedRow; profile?: Profile; compan
   mutualConnections?: number; connectionStatus?: 'connected'|'pending'|'none'; signals: string[]; enrichment?: { email?; phone?; provider? };
   markdown: string; csvRow: Record<string, string> };
 type WriteResult = { status: 'sent'|'queued'|'dryRun'; queueId?: string; wouldSend?: object; sentAt?: number };
-type RateLimit = { hourlyUsed; hourlyCap; dailyUsed; dailyCap; nextAllowedAt: number };
+type RateLimit = { dailyUsed; dailyCap; nextAllowedAt: number };
 type Status = { connected: true; extensionVersion: string; loggedIn: boolean; autopilot: boolean; businessHours: boolean;
   backoffUntil?: number; challenge?: { detectedAt: number }; quotas: Record<'invite'|'message'|'visit'|'search', RateLimit>;
   queue: { pending: number }; campaigns: { active: number; paused: number }; bridge: { enabled: boolean; connected: boolean; port: number } };
-type Config = { minDelayMs; maxDelayMs; hourlyCap; dailyInviteCap; dailyMessageCap; dailyVisitCap; dailySearchCap;
+type Config = { minDelayMs; maxDelayMs; dailyInviteCap; dailyMessageCap; dailyVisitCap; dailySearchCap;
   businessHoursOnly: boolean; businessStart: number; businessEnd: number; weekdaysOnly: boolean;
   autopilot: boolean; accountPreset: 'free'|'premium'|'salesnav'|'recruiter'; warmup: { enabled: boolean; startedAt?: number; days: 14 };
   ai: { provider: 'none'|'anthropic'|'openai'|'gemini'|'ollama'|'openai-compatible'; model?: string; baseUrl?: string; apiKey?: string };
@@ -100,13 +100,11 @@ Hard ceilings are clamped in `config.set` regardless of the value requested. `co
 
 The daily caps are user-controlled safety settings bounded only by those hard ceilings. `accountPreset` supplies suggested pacing and cap values in the settings form; it does not lower caps the user has edited afterward.
 
-Safety settings belong to the human. From any origin but `popup`, `config.set` silently drops `autopilot`, `clearChallenge`, `bridge`, `ai`, `enrichment`, `accountPreset`, `warmup`, `businessHoursOnly`, `businessStart`, `businessEnd`, `weekdaysOnly`, `minDelayMs`, `maxDelayMs`, `hourlyCap`, `dailyInviteCap`, `dailyMessageCap`, `dailyVisitCap` and `dailySearchCap`, and names them in `ignoredKeys` on the result — leaving `webhookUrl` as the one key an agent may write.
+Safety settings belong to the human. From any origin but `popup`, `config.set` silently drops `autopilot`, `clearChallenge`, `bridge`, `ai`, `enrichment`, `accountPreset`, `warmup`, `businessHoursOnly`, `businessStart`, `businessEnd`, `weekdaysOnly`, `minDelayMs`, `maxDelayMs`, `dailyInviteCap`, `dailyMessageCap`, `dailyVisitCap` and `dailySearchCap`, and names them in `ignoredKeys` on the result — leaving `webhookUrl` as the one key an agent may write.
 
 Every profile fetch — `profile.get`, each row of `profile.export`, a connection check, the urn resolution before a message — is metered against the `visit` bucket and paced, because that is what LinkedIn records as a profile visit. One visit is one read of the profile itself; the profile-section reads that follow it (experience always, education and skills on `full: true`) are page-component queries rather than profile views and are not metered.
 
 `Profile.experience` comes from that section read. LinkedIn serves no positions on any profile decoration any more, so a profile whose section read fails comes back with `experience`, `education` and `skills` empty rather than guessed at — see [`voyager-endpoints.md`](voyager-endpoints.md). `network.status` takes at most 25 publicIds per call and answers from the sent-invitations collection wherever it can, spending a visit only for somebody never invited.
-
-`hourlyCap` is additionally clamped to a ceiling of 50 and paces the `invite`, `message` and `visit` buckets only; `search` is metered in results per day, not per hour.
 
 `Campaign.settings.autopilot` is **reserved**. It is stored and returned as part of the campaign, defaults to `false`, and is not read by the engine: whether a campaign step queues or sends is decided solely by the global `Config.autopilot`, which only the popup can change. Do not treat a campaign-level `autopilot: true` as permission to send.
 

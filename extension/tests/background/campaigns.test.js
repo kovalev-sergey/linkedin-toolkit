@@ -5,20 +5,20 @@ import * as events from '../../src/background/events.js';
 import * as inbox from '../../src/background/inbox.js';
 import '../../src/background/lists.js';
 import '../../src/background/outreach.js';
+
+import connectThenMessage from '../../sequences/connect-then-message.json';
+import warmConnect from '../../sequences/warm-connect.json';
 import * as queue from '../../src/background/queue.js';
 import * as quota from '../../src/background/quota.js';
 import { ACTIONS } from '../../src/lib/actions.js';
 import { setConfig } from '../../src/lib/config.js';
 import * as storage from '../../src/lib/storage.js';
-import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
-
-import connectThenMessage from '../../sequences/connect-then-message.json';
-import warmConnect from '../../sequences/warm-connect.json';
 import conversationEvents from '../fixtures/voyager/conversationEvents.json';
 import conversations from '../fixtures/voyager/conversations.json';
 import inviteAccepted from '../fixtures/voyager/inviteAccepted.json';
 import inviteCreated from '../fixtures/voyager/inviteCreated.json';
 import profileView from '../fixtures/voyager/profileView.json';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 const START = new Date(2026, 8, 9, 11, 0, 0);
 const HOUR = 3600000;
@@ -42,7 +42,6 @@ beforeEach(async () => {
   await setConfig({
     autopilot: true,
     accountPreset: 'recruiter',
-    hourlyCap: 50,
     // Business hours are exercised in quota.test.js; jumping days here would
     // otherwise land the tick on a weekend.
     businessHoursOnly: false,
@@ -110,7 +109,12 @@ describe('create and enroll', () => {
     expect(c.stats.enrolled).toBe(1);
 
     const e = await enrollmentOf(c.campaignId);
-    expect(e).toMatchObject({ publicId: 'adalovelace', stepIndex: 0, path: [], status: 'active' });
+    expect(e).toMatchObject({
+      publicId: 'adalovelace',
+      stepIndex: 0,
+      path: [],
+      status: 'active',
+    });
   });
 
   it('enrolls everyone on a list', async () => {
@@ -120,7 +124,11 @@ describe('create and enroll', () => {
       profiles: [{ publicId: 'adalovelace' }, { publicId: 'bobbright' }],
     });
     const c = (
-      await handle(ACTIONS.CAMPAIGN_CREATE, { name: 'FromList', steps: [], listId: list.listId })
+      await handle(ACTIONS.CAMPAIGN_CREATE, {
+        name: 'FromList',
+        steps: [],
+        listId: list.listId,
+      })
     ).data;
     expect(c.stats.enrolled).toBe(2);
   });
@@ -247,7 +255,9 @@ describe('branching', () => {
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     // The invitation is still pending, so the branch takes the else arm.
-    net.route('sentInvitationViewsV2', { elements: [{ invitee: { miniProfile: { publicIdentifier: 'adalovelace' } } }] });
+    net.route('sentInvitationViewsV2', {
+      elements: [{ invitee: { miniProfile: { publicIdentifier: 'adalovelace' } } }],
+    });
     net.push({}); // the follow
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
@@ -289,7 +299,9 @@ describe('branching', () => {
     expect((await enrollmentOf(c.campaignId)).path).toEqual([]);
 
     jump(73 * HOUR);
-    net.route('sentInvitationViewsV2', { elements: [{ invitee: { miniProfile: { publicIdentifier: 'adalovelace' } } }] });
+    net.route('sentInvitationViewsV2', {
+      elements: [{ invitee: { miniProfile: { publicIdentifier: 'adalovelace' } } }],
+    });
     net.push({}); // the follow
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect((await storage.allActions()).map((e) => e.action)).toContain(ACTIONS.OUTREACH_FOLLOW);
@@ -336,7 +348,9 @@ describe('stopOnReply', () => {
   });
 
   it('does not stop when stopOnReply is off', async () => {
-    const c = await makeCampaign([{ type: 'view' }, { type: 'view' }], { stopOnReply: false });
+    const c = await makeCampaign([{ type: 'view' }, { type: 'view' }], {
+      stopOnReply: false,
+    });
     net.push(profileView);
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     jump(HOUR);
@@ -373,7 +387,9 @@ describe('invite notes are cut to fit LinkedIn, not refused', () => {
   });
 
   it('leaves no trailing space or dangling punctuation', () => {
-    const out = campaigns.fitInviteNote(`${'a'.repeat(150)} and, then more words here to overflow it`);
+    const out = campaigns.fitInviteNote(
+      `${'a'.repeat(150)} and, then more words here to overflow it`,
+    );
     expect(out.note).not.toMatch(/[\s,;:-]$/);
   });
 
@@ -398,7 +414,11 @@ describe('invite notes are cut to fit LinkedIn, not refused', () => {
 
     const warning = seen.find((f) => f.event === 'campaign_note_truncated');
     expect(warning).toBeTruthy();
-    expect(warning.payload).toMatchObject({ publicId: 'adalovelace', stepIndex: 0, limit: 200 });
+    expect(warning.payload).toMatchObject({
+      publicId: 'adalovelace',
+      stepIndex: 0,
+      limit: 200,
+    });
     expect(warning.payload.originalLength).toBeGreaterThan(200);
   });
 
@@ -428,7 +448,9 @@ describe('variants', () => {
     for (let i = 0; i < 3; i += 1) net.push(inviteCreated); // three invites
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
-    const notes = net.calls.filter((x) => x.json && x.json.customMessage).map((x) => x.json.customMessage);
+    const notes = net.calls
+      .filter((x) => x.json && x.json.customMessage)
+      .map((x) => x.json.customMessage);
     expect(notes).toEqual(['A Ada', 'B Bob', 'A Carla']);
     expect((await handle(ACTIONS.CAMPAIGN_GET, { campaignId: c.campaignId })).data.stats.sent).toBe(
       3,
@@ -440,7 +462,12 @@ describe('variants without a note or body', () => {
   it('uses the variants when the step carries no literal text', async () => {
     await handle(ACTIONS.CAMPAIGN_CREATE, {
       name: 'Variants only',
-      steps: [{ type: 'invite', variants: ['Only A {{firstName}}', 'Only B {{firstName}}'] }],
+      steps: [
+        {
+          type: 'invite',
+          variants: ['Only A {{firstName}}', 'Only B {{firstName}}'],
+        },
+      ],
       publicIds: ['adalovelace', 'bobbright'],
     });
     await storage.putProfile({ publicId: 'bobbright', firstName: 'Bob' });
@@ -448,7 +475,9 @@ describe('variants without a note or body', () => {
     for (let i = 0; i < 2; i += 1) net.push(inviteCreated); // two invites
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
-    const notes = net.calls.filter((x) => x.json && x.json.customMessage).map((x) => x.json.customMessage);
+    const notes = net.calls
+      .filter((x) => x.json && x.json.customMessage)
+      .map((x) => x.json.customMessage);
     expect(notes).toEqual(['Only A Ada', 'Only B Bob']);
   });
 
@@ -673,11 +702,14 @@ describe('copilot and quotas', () => {
         publicIds: ['adalovelace'],
       })
     ).data;
-    await handle(ACTIONS.CAMPAIGN_ENROLL, { campaignId: c.campaignId, publicIds: ['bobbright'] });
+    await handle(ACTIONS.CAMPAIGN_ENROLL, {
+      campaignId: c.campaignId,
+      publicIds: ['bobbright'],
+    });
     await storage.putProfile({ publicId: 'bobbright', firstName: 'Bob' });
 
     // One person a tick, by leaving only one invite's worth of quota per day.
-    await setConfig({ accountPreset: 'free', dailyInviteCap: 1, hourlyCap: 50 });
+    await setConfig({ accountPreset: 'free', dailyInviteCap: 1 });
 
     net.push(inviteCreated);
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
@@ -686,12 +718,18 @@ describe('copilot and quotas', () => {
     net.push(inviteCreated);
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
-    const notes = net.calls.filter((x) => x.json && x.json.customMessage).map((x) => x.json.customMessage);
+    const notes = net.calls
+      .filter((x) => x.json && x.json.customMessage)
+      .map((x) => x.json.customMessage);
     expect(notes).toEqual(['A Ada', 'B Bob']);
   });
 
   it('halts the tick outside business hours', async () => {
-    await setConfig({ businessHoursOnly: true, businessStart: 9, businessEnd: 18 });
+    await setConfig({
+      businessHoursOnly: true,
+      businessStart: 9,
+      businessEnd: 18,
+    });
     const c = await makeCampaign([{ type: 'invite', note: 'Hi' }]);
     vi.setSystemTime(new Date(2026, 8, 9, 22, 0, 0));
     const res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
@@ -728,7 +766,11 @@ describe('v1 migration', () => {
           { type: 'view_profile' },
           { type: 'wait', delay_hours: 48 },
           { type: 'send_invite', message_template: 'Hi {{firstName}}' },
-          { type: 'send_message', delay_hours: 24, message_template: 'Following up' },
+          {
+            type: 'send_message',
+            delay_hours: 24,
+            message_template: 'Following up',
+          },
         ],
         contacts: [{ publicIdentifier: 'adalovelace', currentStep: 1, replied: false }],
       },
@@ -747,7 +789,11 @@ describe('v1 migration', () => {
     expect(list[0].migratedFrom).toBe('v1');
 
     const enrollments = await campaigns.readEnrollments('camp_old');
-    expect(enrollments[0]).toMatchObject({ publicId: 'adalovelace', stepIndex: 1, status: 'active' });
+    expect(enrollments[0]).toMatchObject({
+      publicId: 'adalovelace',
+      stepIndex: 1,
+      status: 'active',
+    });
 
     // Idempotent: a second read does not migrate again.
     const again = await campaigns.readCampaigns();

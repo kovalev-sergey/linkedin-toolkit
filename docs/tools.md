@@ -11,7 +11,7 @@ Every tool is a thin wrapper over one action. The MCP server does no logic of it
 Every tool returns the envelope:
 
 ```jsonc
-{ "ok": true,  "data": { /* … */ }, "rateLimit": { "hourlyUsed": 3, "hourlyCap": 20, "dailyUsed": 14, "dailyCap": 100, "nextAllowedAt": 0 } }
+{ "ok": true,  "data": { /* … */ }, "rateLimit": { "dailyUsed": 14, "dailyCap": 100, "nextAllowedAt": 0 } }
 { "ok": false, "error": { "code": "RATE_LIMITED", "message": "…", "retryAfter": 900000, "howToFix": "…" } }
 ```
 
@@ -226,7 +226,7 @@ ORDER BY a.created_at DESC;
 | `NOT_LOGGED_IN` | No LinkedIn session in Chrome, or LinkedIn sent the request to its sign-in page | Stop. Tell the human to log in. |
 | `RATE_LIMITED` | LinkedIn returned 429; the engine is backing off | Stop. Report `retryAfter`. Do not retry. |
 | `CHALLENGE_DETECTED` | LinkedIn asked for a security check — a redirect to its checkpoint page, a check page in place of data, or a 451 | **Stop everything.** All requests are paused until a human completes the check and clears it in the popup. Never retry. See [captcha-and-security-checks.md](captcha-and-security-checks.md). |
-| `QUOTA_EXCEEDED` | A daily or hourly cap is spent | Stop for that action type. Report the cap. It cannot be raised. |
+| `QUOTA_EXCEEDED` | A daily cap is spent | Stop for that action type. Report the cap. It cannot be raised. |
 | `OUTSIDE_BUSINESS_HOURS` | Outside the configured window | Reads still work. Writes wait. |
 | `INVALID_PARAMS` | Failed schema validation | Fix the call. `message` says which field. |
 | `NOT_FOUND` | No such profile, list, campaign, or queue item | Check the id came from a tool result. |

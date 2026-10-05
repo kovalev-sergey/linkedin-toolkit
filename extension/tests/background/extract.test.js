@@ -5,8 +5,6 @@ import * as quota from '../../src/background/quota.js';
 import { ACTIONS, ERROR } from '../../src/lib/actions.js';
 import { setConfig } from '../../src/lib/config.js';
 import * as storage from '../../src/lib/storage.js';
-import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
-
 import company from '../fixtures/voyager/company.json';
 import companyEmployees from '../fixtures/voyager/companyEmployees.json';
 import connections from '../fixtures/voyager/connections.json';
@@ -18,6 +16,7 @@ import profileView from '../fixtures/voyager/profileView.json';
 import reactions from '../fixtures/voyager/reactions.json';
 import searchClusters from '../fixtures/voyager/searchClusters.json';
 import sentInvitations from '../fixtures/voyager/sentInvitations.json';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 let net;
 
@@ -59,7 +58,10 @@ function sentInvitations2(publicIds) {
 describe('search.people', () => {
   it('returns contract profiles and stores them', async () => {
     net.push(searchClusters);
-    const res = await handle(ACTIONS.SEARCH_PEOPLE, { keywords: 'analyst', count: 2 });
+    const res = await handle(ACTIONS.SEARCH_PEOPLE, {
+      keywords: 'analyst',
+      count: 2,
+    });
     expect(res.ok).toBe(true);
     expect(res.data.profiles.map((p) => p.publicId)).toEqual(['adalovelace', 'bobbright']);
     expect(res.data.total).toBe(240);
@@ -83,7 +85,10 @@ describe('search.people', () => {
 
   it('routes source=salesnav at the Sales Navigator API', async () => {
     net.push({ elements: [], paging: { total: 0 } });
-    await handle(ACTIONS.SEARCH_PEOPLE, { keywords: 'cto', source: 'salesnav' });
+    await handle(ACTIONS.SEARCH_PEOPLE, {
+      keywords: 'cto',
+      source: 'salesnav',
+    });
     expect(net.calls[0].url).toContain('sales-api');
   });
 });
@@ -155,14 +160,18 @@ describe('profile.get / profile.export', () => {
       urls: ['https://www.linkedin.com/in/adalovelace/', 'https://example.com/nope'],
     });
     expect(res.data.profiles).toHaveLength(1);
-    expect(res.data.failed[0]).toMatchObject({ url: 'https://example.com/nope' });
+    expect(res.data.failed[0]).toMatchObject({
+      url: 'https://example.com/nope',
+    });
   });
 });
 
 describe('company', () => {
   it('company.get accepts a url or a universalName', async () => {
     net.push(company);
-    const byName = await handle(ACTIONS.COMPANY_GET, { universalName: 'analytical-engines' });
+    const byName = await handle(ACTIONS.COMPANY_GET, {
+      universalName: 'analytical-engines',
+    });
     expect(byName.data.name).toBe('Analytical Engines');
 
     net.push(company);
@@ -198,8 +207,11 @@ describe('audiences', () => {
   it('group.members, event.attendees, connections and followers all return profiles', async () => {
     net.push(groupMembers);
     expect(
-      (await handle(ACTIONS.GROUP_MEMBERS, { groupUrl: 'https://www.linkedin.com/groups/12345/' }))
-        .data.profiles[0].publicId,
+      (
+        await handle(ACTIONS.GROUP_MEMBERS, {
+          groupUrl: 'https://www.linkedin.com/groups/12345/',
+        })
+      ).data.profiles[0].publicId,
     ).toBe('erikericsson');
 
     net.push(eventAttendees);
@@ -230,20 +242,30 @@ describe('audiences', () => {
 describe('network.status', () => {
   it('reads pending straight off the sent-invitations collection, with no profile view', async () => {
     net.push(sentInvitations);
-    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['bobbright', 'carlachen'] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['bobbright', 'carlachen'],
+    });
 
-    expect(res.data.statuses).toEqual({ bobbright: 'pending', carlachen: 'pending' });
+    expect(res.data.statuses).toEqual({
+      bobbright: 'pending',
+      carlachen: 'pending',
+    });
     expect(net.calls).toHaveLength(1);
     expect(net.calls[0].url).toContain('sentInvitationViewsV2');
     expect((await quota.snapshot('visit')).dailyUsed).toBe(0);
   });
 
   it('confirms an invitation that has left the pending list with one profile read', async () => {
-    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_INVITE,
+      publicId: 'adalovelace',
+    });
     net.push({ elements: [] }); // nothing pending any more
     net.push(inviteAccepted); // …and they are 1st degree: a real acceptance
 
-    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['adalovelace'],
+    });
     expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
     expect(linkedInCalls()).toHaveLength(2);
     expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
@@ -254,29 +276,41 @@ describe('network.status', () => {
     const events = await import('../../src/background/events.js');
     events.setSink((f) => seen.push(f));
 
-    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_INVITE,
+      publicId: 'adalovelace',
+    });
     net.push({ elements: [] }); // gone from the pending list
     net.push(profileView); // but still only 2nd degree
 
-    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['adalovelace'],
+    });
     expect(res.data.statuses).toEqual({ adalovelace: 'pending' });
     expect(seen.map((f) => f.event)).not.toContain('invite_accepted');
     events.setSink(null);
   });
 
   it('a message or a comment is not an invitation', async () => {
-    await storage.logAction({ action: ACTIONS.OUTREACH_MESSAGE, publicId: 'adalovelace' });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_MESSAGE,
+      publicId: 'adalovelace',
+    });
     net.push({ elements: [] });
     net.push(profileView); // 2nd degree
 
-    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['adalovelace'],
+    });
     expect(res.data.statuses).toEqual({ adalovelace: 'none' });
   });
 
   it('falls back to a profile view for somebody we never invited, and meters it', async () => {
     net.push({ elements: [] }); // nothing pending
     net.push(inviteAccepted); // 1st degree
-    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['adalovelace'],
+    });
 
     expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
     expect(linkedInCalls()).toHaveLength(2);
@@ -286,7 +320,9 @@ describe('network.status', () => {
   it('reports none for a stranger who is not a connection', async () => {
     net.push({ elements: [] });
     net.push(profileView); // 2nd degree
-    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['adalovelace'],
+    });
     expect(res.data.statuses).toEqual({ adalovelace: 'none' });
   });
 
@@ -302,7 +338,9 @@ describe('network.status', () => {
   it('accepts exactly 25', async () => {
     const publicIds = Array.from({ length: 25 }, (_, i) => `person${i}`);
     net.push({
-      elements: publicIds.map((publicId) => ({ invitee: { miniProfile: { publicIdentifier: publicId } } })),
+      elements: publicIds.map((publicId) => ({
+        invitee: { miniProfile: { publicIdentifier: publicId } },
+      })),
     });
 
     const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds });
@@ -311,8 +349,8 @@ describe('network.status', () => {
     expect(net.calls).toHaveLength(1);
   });
 
-  it('a batch of strangers stops reading at the hourly cap and says it is partial', async () => {
-    await setConfig({ hourlyCap: 3 });
+  it('a batch of strangers stops reading at the daily cap and says it is partial', async () => {
+    await setConfig({ dailyVisitCap: 3 });
     net.push({ elements: [] });
     const publicIds = Array.from({ length: 25 }, (_, i) => `person${i}`);
 
@@ -329,9 +367,15 @@ describe('network.status', () => {
   });
 
   it('keeps what it resolved and calls unread invitations pending', async () => {
-    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'invited1' });
-    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'invited2' });
-    await setConfig({ hourlyCap: 1 });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_INVITE,
+      publicId: 'invited1',
+    });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_INVITE,
+      publicId: 'invited2',
+    });
+    await setConfig({ dailyVisitCap: 1 });
 
     net.push({ elements: [] }); // nothing pending
     net.push(inviteAccepted); // the one read we can afford
@@ -342,7 +386,10 @@ describe('network.status', () => {
 
     expect(res.ok).toBe(true);
     expect(res.data.partial).toBe(true);
-    expect(res.data.statuses).toEqual({ invited1: 'connected', invited2: 'pending' });
+    expect(res.data.statuses).toEqual({
+      invited1: 'connected',
+      invited2: 'pending',
+    });
     expect('stranger' in res.data.statuses).toBe(false);
     expect(linkedInCalls()).toHaveLength(2);
   });
@@ -352,7 +399,10 @@ describe('network.status', () => {
     const events = await import('../../src/background/events.js');
     events.setSink((f) => seen.push(f));
 
-    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_INVITE,
+      publicId: 'adalovelace',
+    });
     net.push({ elements: [] });
     net.push(inviteAccepted);
     await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
@@ -370,7 +420,10 @@ describe('network.status', () => {
     events.setSink((f) => seen.push(f));
 
     // The invite goes out…
-    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_INVITE,
+      publicId: 'adalovelace',
+    });
     vi.setSystemTime(new Date(2026, 8, 9, 12, 0, 0));
 
     // …and while it is still pending, a view step reads the profile: 2nd degree.
@@ -389,7 +442,9 @@ describe('network.status', () => {
     net.push({ elements: [] });
     net.push(inviteAccepted); // the refetch finds a first-degree connection
 
-    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['adalovelace'],
+    });
 
     expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
     expect(seen.map((f) => f.event)).toContain('invite_accepted');
@@ -400,7 +455,10 @@ describe('network.status', () => {
   });
 
   it('a routine list read does not throw away a confirmed connection', async () => {
-    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_INVITE,
+      publicId: 'adalovelace',
+    });
     vi.setSystemTime(new Date(2026, 8, 9, 12, 0, 0));
 
     // Confirmed first degree by a real profile read.
@@ -416,7 +474,9 @@ describe('network.status', () => {
 
     // So the acceptance check is answered from what we already knew.
     net.push({ elements: [] });
-    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['adalovelace'],
+    });
 
     expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
     expect((await quota.snapshot('visit')).dailyUsed).toBe(visitsAfterRead);
@@ -424,7 +484,10 @@ describe('network.status', () => {
   });
 
   it('a cached unknown degree never answers an acceptance check', async () => {
-    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_INVITE,
+      publicId: 'adalovelace',
+    });
     vi.setSystemTime(new Date(2026, 8, 9, 12, 0, 0));
 
     // A read that came back without a parsable distance.
@@ -439,22 +502,31 @@ describe('network.status', () => {
     net.push({ elements: [] }); // the invitation is gone
     net.push(inviteAccepted); // so it looks again, and finds the acceptance
 
-    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['adalovelace'],
+    });
     expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
     expect((await quota.snapshot('visit')).dailyUsed).toBe(2);
   });
 
   it('a cached first-degree read still answers without another fetch', async () => {
-    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    await storage.logAction({
+      action: ACTIONS.OUTREACH_INVITE,
+      publicId: 'adalovelace',
+    });
     vi.setSystemTime(new Date(2026, 8, 9, 12, 0, 0));
 
     net.push({ elements: [] });
     net.push(inviteAccepted);
     await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
-    const readsAfterFirst = net.calls.filter((c) => c.url.includes('/identity/dash/profiles')).length;
+    const readsAfterFirst = net.calls.filter((c) =>
+      c.url.includes('/identity/dash/profiles'),
+    ).length;
 
     net.push({ elements: [] });
-    const again = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    const again = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['adalovelace'],
+    });
 
     expect(again.data.statuses).toEqual({ adalovelace: 'connected' });
     expect(net.calls.filter((c) => c.url.includes('/identity/dash/profiles'))).toHaveLength(
@@ -475,22 +547,32 @@ describe('network.status', () => {
       const events = await import('../../src/background/events.js');
       events.setSink((f) => seen.push(f));
 
-      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+      await storage.logAction({
+        action: ACTIONS.OUTREACH_INVITE,
+        publicId: 'adalovelace',
+      });
       invitationsFail();
       net.push(profileView); // 2nd degree
 
-      const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+      const res = await handle(ACTIONS.NETWORK_STATUS, {
+        publicIds: ['adalovelace'],
+      });
       expect(res.data.statuses).toEqual({ adalovelace: 'pending' });
       expect(seen.map((f) => f.event)).not.toContain('invite_accepted');
       events.setSink(null);
     });
 
     it('still confirms a genuine acceptance from the profile', async () => {
-      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+      await storage.logAction({
+        action: ACTIONS.OUTREACH_INVITE,
+        publicId: 'adalovelace',
+      });
       invitationsFail();
       net.push(inviteAccepted);
 
-      const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+      const res = await handle(ACTIONS.NETWORK_STATUS, {
+        publicIds: ['adalovelace'],
+      });
       expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
     });
 
@@ -499,9 +581,15 @@ describe('network.status', () => {
       const events = await import('../../src/background/events.js');
       events.setSink((f) => seen.push(f));
 
-      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
-      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'bobbright' });
-      await setConfig({ accountPreset: 'free' });
+      await storage.logAction({
+        action: ACTIONS.OUTREACH_INVITE,
+        publicId: 'adalovelace',
+      });
+      await storage.logAction({
+        action: ACTIONS.OUTREACH_INVITE,
+        publicId: 'bobbright',
+      });
+      await setConfig({ accountPreset: 'free', dailyVisitCap: 80 });
       await quota.record('visit', 80); // no visits left
 
       invitationsFail();
@@ -509,7 +597,10 @@ describe('network.status', () => {
         publicIds: ['adalovelace', 'bobbright'],
       });
 
-      expect(res.data.statuses).toEqual({ adalovelace: 'pending', bobbright: 'pending' });
+      expect(res.data.statuses).toEqual({
+        adalovelace: 'pending',
+        bobbright: 'pending',
+      });
       expect(res.data.partial).toBe(true);
       expect(seen.map((f) => f.event)).not.toContain('invite_accepted');
       events.setSink(null);
@@ -520,12 +611,17 @@ describe('network.status', () => {
       const events = await import('../../src/background/events.js');
       events.setSink((f) => seen.push(f));
 
-      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+      await storage.logAction({
+        action: ACTIONS.OUTREACH_INVITE,
+        publicId: 'adalovelace',
+      });
       net.push({ data: { paging: { total: 3 } }, included: [] }); // shape LinkedIn changed
       net.push({ data: { paging: { total: 3 } }, included: [] }); // and so does the fallback
       net.push(profileView); // and the profile says 2nd degree
 
-      const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+      const res = await handle(ACTIONS.NETWORK_STATUS, {
+        publicIds: ['adalovelace'],
+      });
       expect(res.data.statuses).toEqual({ adalovelace: 'pending' });
       expect(seen.map((f) => f.event)).not.toContain('invite_accepted');
       events.setSink(null);
@@ -533,11 +629,13 @@ describe('network.status', () => {
   });
 
   it('stops rather than firing 25 profile reads when the visit quota is spent', async () => {
-    await setConfig({ accountPreset: 'free' });
+    await setConfig({ accountPreset: 'free', dailyVisitCap: 80 });
     await quota.record('visit', 80);
     net.push({ elements: [] });
 
-    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['a', 'b', 'c'] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['a', 'b', 'c'],
+    });
 
     // Nothing could be checked, so nothing is claimed — but a spent quota is
     // an ordinary condition, not a failure of the call.
@@ -549,7 +647,11 @@ describe('network.status', () => {
   });
 
   it('degrades for the working window too', async () => {
-    await setConfig({ businessHoursOnly: true, businessStart: 9, businessEnd: 18 });
+    await setConfig({
+      businessHoursOnly: true,
+      businessStart: 9,
+      businessEnd: 18,
+    });
     vi.setSystemTime(new Date(2026, 8, 9, 22, 0, 0));
     net.push({ elements: [] });
 
@@ -564,12 +666,17 @@ describe('network.status', () => {
       ['a security challenge', 451, ERROR.CHALLENGE_DETECTED],
       ['a rate limit', 429, ERROR.RATE_LIMITED],
     ])('%s throws, even after ids have resolved', async (_name, status, code) => {
-      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'invited1' });
+      await storage.logAction({
+        action: ACTIONS.OUTREACH_INVITE,
+        publicId: 'invited1',
+      });
 
       net.push(sentInvitations2(['invited1'])); // invited1 resolves cheaply
       net.push({ __status: status, body: {} }); // the first real read is refused
 
-      const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['invited1', 'stranger'] });
+      const res = await handle(ACTIONS.NETWORK_STATUS, {
+        publicIds: ['invited1', 'stranger'],
+      });
 
       expect(res.ok).toBe(false);
       expect(res.error.code).toBe(code);
@@ -579,7 +686,9 @@ describe('network.status', () => {
       net.push({ elements: [] });
       net.push({ __status: 401, body: {} });
 
-      const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['stranger'] });
+      const res = await handle(ACTIONS.NETWORK_STATUS, {
+        publicIds: ['stranger'],
+      });
       expect(res.ok).toBe(false);
       expect(res.error.code).toBe(ERROR.NOT_LOGGED_IN);
     });
@@ -602,7 +711,7 @@ describe('profile reads are metered as visits', () => {
   });
 
   it('profile.get refuses when the visit quota is spent, without fetching', async () => {
-    await setConfig({ accountPreset: 'free' });
+    await setConfig({ accountPreset: 'free', dailyVisitCap: 80 });
     await quota.record('visit', 80);
     const res = await handle(ACTIONS.PROFILE_GET, { publicId: 'adalovelace' });
     expect(res.error.code).toBe(ERROR.QUOTA_EXCEEDED);
@@ -636,11 +745,20 @@ describe('audience reads are metered against the search bucket', () => {
     [
       'post.engagers',
       ACTIONS.POST_ENGAGERS,
-      { postUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:7000000000000000001/', kind: 'likes' },
+      {
+        postUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:7000000000000000001/',
+        kind: 'likes',
+      },
       reactions,
       2,
     ],
-    ['group.members', ACTIONS.GROUP_MEMBERS, { groupUrl: 'https://www.linkedin.com/groups/12345/' }, groupMembers, 1],
+    [
+      'group.members',
+      ACTIONS.GROUP_MEMBERS,
+      { groupUrl: 'https://www.linkedin.com/groups/12345/' },
+      groupMembers,
+      1,
+    ],
     [
       'event.attendees',
       ACTIONS.EVENT_ATTENDEES,

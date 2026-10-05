@@ -98,7 +98,7 @@ Not using MCP? `lit serve --http` gives you `POST /actions/{action}` and a gener
 | **Inbox** | Unified threads, unread, reply detection, sentiment tagging, saved replies, snooze. |
 | **Research Pack** | A CSV of names or domains in; a dossier, an enriched CSV and a list out. [Below](#research-pack). |
 | **Agent layer** | 39 MCP tools, 4 resources, 3 prompts, a `/actions` HTTP API with OpenAPI 3.1, Node and Python clients, an n8n node, [6 skills](skills/). |
-| **Safety** | Jittered human delays, hourly and daily caps, business hours, 14-day warm-up, account presets, approval queue, 429 backoff, auto-pause on any security check (451 or a checkpoint redirect). |
+| **Safety** | Jittered human delays, daily caps, business hours, 14-day warm-up, account presets, approval queue, 429 backoff, auto-pause on any security check (451 or a checkpoint redirect). |
 | **Local everything** | `chrome.storage.local`, IndexedDB and a SQLite file on your machine. Read-only SQL over the lot. No server, no account, no telemetry. |
 
 ## Works with your agent
@@ -216,7 +216,7 @@ What it does do:
 
 - **Hard caps in the extension**, below every client: 100 invites, 150 messages, 500 profile
   visits, 1,000 search results per day. `config.set` clamps whatever you pass.
-- **Human pacing** — jittered 8–15 second delays, hourly caps, a business-hours window, weekdays
+- **Human pacing** — jittered 8–15 second delays, a business-hours window, weekdays
   only if you want. Machine-speed activity is the loudest signal an account can emit.
 - **14-day warm-up** for new or dormant accounts.
 - **Copilot mode** — every agent write queues for your approval. Autopilot is a toggle only a

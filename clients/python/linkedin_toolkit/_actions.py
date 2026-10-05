@@ -42,7 +42,7 @@ class ActionMethods:
         """
         return self._invoke("config.get", {})
 
-    def config_set(self, *, minDelayMs: Optional[float] = None, maxDelayMs: Optional[float] = None, hourlyCap: Optional[float] = None, dailyInviteCap: Optional[float] = None, dailyMessageCap: Optional[float] = None, dailyVisitCap: Optional[float] = None, dailySearchCap: Optional[float] = None, businessHoursOnly: Optional[bool] = None, businessStart: Optional[float] = None, businessEnd: Optional[float] = None, weekdaysOnly: Optional[bool] = None, autopilot: Optional[bool] = None, accountPreset: Optional[str] = None, warmup: Optional[dict[str, Any]] = None, ai: Optional[dict[str, Any]] = None, bridge: Optional[dict[str, Any]] = None, webhookUrl: Optional[str] = None) -> Any:
+    def config_set(self, *, minDelayMs: Optional[float] = None, maxDelayMs: Optional[float] = None, dailyInviteCap: Optional[float] = None, dailyMessageCap: Optional[float] = None, dailyVisitCap: Optional[float] = None, dailySearchCap: Optional[float] = None, businessHoursOnly: Optional[bool] = None, businessStart: Optional[float] = None, businessEnd: Optional[float] = None, weekdaysOnly: Optional[bool] = None, autopilot: Optional[bool] = None, accountPreset: Optional[str] = None, warmup: Optional[dict[str, Any]] = None, ai: Optional[dict[str, Any]] = None, bridge: Optional[dict[str, Any]] = None, webhookUrl: Optional[str] = None) -> Any:
         """``config.set``.
 
         Run the `config.set` action on the connected extension. This is a write action: it
@@ -51,7 +51,6 @@ class ActionMethods:
         Args:
             minDelayMs (float): Optional.
             maxDelayMs (float): Optional.
-            hourlyCap (float): Optional.
             dailyInviteCap (float): Optional.
             dailyMessageCap (float): Optional.
             dailyVisitCap (float): Optional.
@@ -67,7 +66,7 @@ class ActionMethods:
             bridge (dict[str, Any]): Optional.
             webhookUrl (str): Optional.
         """
-        params = {"minDelayMs": minDelayMs, "maxDelayMs": maxDelayMs, "hourlyCap": hourlyCap, "dailyInviteCap": dailyInviteCap, "dailyMessageCap": dailyMessageCap, "dailyVisitCap": dailyVisitCap, "dailySearchCap": dailySearchCap, "businessHoursOnly": businessHoursOnly, "businessStart": businessStart, "businessEnd": businessEnd, "weekdaysOnly": weekdaysOnly, "autopilot": autopilot, "accountPreset": accountPreset, "warmup": warmup, "ai": ai, "bridge": bridge, "webhookUrl": webhookUrl}
+        params = {"minDelayMs": minDelayMs, "maxDelayMs": maxDelayMs, "dailyInviteCap": dailyInviteCap, "dailyMessageCap": dailyMessageCap, "dailyVisitCap": dailyVisitCap, "dailySearchCap": dailySearchCap, "businessHoursOnly": businessHoursOnly, "businessStart": businessStart, "businessEnd": businessEnd, "weekdaysOnly": weekdaysOnly, "autopilot": autopilot, "accountPreset": accountPreset, "warmup": warmup, "ai": ai, "bridge": bridge, "webhookUrl": webhookUrl}
         return self._invoke("config.set", {k: v for k, v in params.items() if v is not None})
 
     def search_people(self, *, keywords: str, title: Optional[str] = None, company: Optional[str] = None, location: Optional[str] = None, source: Optional[str] = None, start: Optional[int] = None, count: Optional[int] = None) -> Any:
@@ -320,7 +319,7 @@ class ActionMethods:
         params = {"publicId": publicId, "note": note, "dry_run": dry_run}
         return self._invoke("outreach.invite", {k: v for k, v in params.items() if v is not None})
 
-    def outreach_message(self, *, publicId: str, body: str, dry_run: Optional[bool] = None) -> Any:
+    def outreach_message(self, *, publicId: str, body: str, threadId: Optional[str] = None, attachment: Optional[dict[str, Any]] = None, dry_run: Optional[bool] = None) -> Any:
         """``outreach.message``.
 
         Send a direct message to a first-degree connection. Hard cap 150 messages/day; in
@@ -329,9 +328,11 @@ class ActionMethods:
         Args:
             publicId (str): Required.
             body (str): Required.
+            threadId (str): Optional.
+            attachment (dict[str, Any]): Optional.
             dry_run (bool): Preview the write without queueing or sending it. Optional.
         """
-        params = {"publicId": publicId, "body": body, "dry_run": dry_run}
+        params = {"publicId": publicId, "body": body, "threadId": threadId, "attachment": attachment, "dry_run": dry_run}
         return self._invoke("outreach.message", {k: v for k, v in params.items() if v is not None})
 
     def outreach_inmail(self, *, publicId: str, subject: str, body: str, dry_run: Optional[bool] = None) -> Any:
@@ -624,13 +625,13 @@ class ActionMethods:
         """``queue.list``.
 
         List items in the human-approval queue, optionally filtered by status ("pending",
-        "approved", "rejected", "sent" or "failed"). In Copilot mode every agent-originated
-        write lands here first, so call this to show the user what is waiting, and poll it after
-        linkedin_queue_approve to see what actually sent. Returns queue items with their action,
-        params and target profile; a failed item carries result.error.
+        "approved", "rejected" or "sent"). In Copilot mode every agent-originated write lands
+        here first, so call this to show the user what is waiting, and poll it after
+        linkedin_queue_approve to see what actually sent. Delivery errors return the draft to
+        pending and carry result.error.
 
         Args:
-            status (str): (one of "pending", "approved", "rejected", "sent", "failed") Optional.
+            status (str): (one of "pending", "approved", "rejected", "sent") Optional.
         """
         params = {"status": status}
         return self._invoke("queue.list", {k: v for k, v in params.items() if v is not None})
@@ -644,8 +645,8 @@ class ActionMethods:
         the queue with linkedin_queue_list and ask the user to approve in the popup. Returns
         {approved} immediately — the count marked approved, not sent. The extension then sends
         them one at a time at human pace, which takes seconds to minutes, so watch
-        queue_item_sent events or poll linkedin_queue_list (status "sent" or "failed") rather
-        than assuming the writes have landed when this returns. An edited note longer than 200
+        queue_item_sent and queue_item_blocked events or poll linkedin_queue_list; delivery
+        errors remain attached to pending drafts for retry. An edited note longer than 200
         characters is refused here with INVALID_PARAMS and nothing is approved.
 
         Args:

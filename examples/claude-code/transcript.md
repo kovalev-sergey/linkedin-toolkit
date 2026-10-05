@@ -23,10 +23,10 @@ I'll check the toolkit is connected first, then search.
   "autopilot": false,
   "businessHours": true,
   "quotas": {
-    "invite": { "hourlyUsed": 0, "hourlyCap": 20, "dailyUsed": 6, "dailyCap": 100, "nextAllowedAt": 0 },
-    "search": { "hourlyUsed": 0, "hourlyCap": 200, "dailyUsed": 0, "dailyCap": 1000, "nextAllowedAt": 0 },
-    "visit":  { "hourlyUsed": 2, "hourlyCap": 60, "dailyUsed": 11, "dailyCap": 500, "nextAllowedAt": 0 },
-    "message":{ "hourlyUsed": 0, "hourlyCap": 30, "dailyUsed": 0, "dailyCap": 150, "nextAllowedAt": 0 }
+    "invite": { "dailyUsed": 6, "dailyCap": 100, "nextAllowedAt": 0 },
+    "search": { "dailyUsed": 0, "dailyCap": 1000, "nextAllowedAt": 0 },
+    "visit":  { "dailyUsed": 11, "dailyCap": 500, "nextAllowedAt": 0 },
+    "message":{ "dailyUsed": 0, "dailyCap": 150, "nextAllowedAt": 0 }
   },
   "queue": { "pending": 0 },
   "campaigns": { "active": 1, "paused": 0 }

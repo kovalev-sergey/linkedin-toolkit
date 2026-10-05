@@ -1,13 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect } from 'vitest';
-
-import { renderSettings, PRESET_DEFAULTS, AI_FIELDS } from '../../src/ui/settings.js';
-import { extraCards, start } from '../../src/options/options.js';
+import { describe, expect, it } from 'vitest';
 import { ACTIONS, HARD_CAPS } from '../../src/lib/actions.js';
+import { extraCards, start } from '../../src/options/options.js';
 import { UI_KEYS } from '../../src/ui/api.js';
-import { stubEngine, flush, mountPoint, statusFixture, configFixture } from './helpers.js';
+import { AI_FIELDS, PRESET_DEFAULTS, renderSettings } from '../../src/ui/settings.js';
+import { configFixture, flush, mountPoint, statusFixture, stubEngine } from './helpers.js';
 
 const clickIn = (host, text) => {
   const node = [...host.querySelectorAll('button')].find((b) => b.textContent.includes(text));
@@ -128,7 +127,11 @@ describe('settings form', () => {
     const engine = settingsEngine(
       {},
       {
-        [ACTIONS.AI_COMPLETE]: { output: 'A greeting.', provider: 'ollama', model: 'llama3' },
+        [ACTIONS.AI_COMPLETE]: {
+          output: 'A greeting.',
+          provider: 'ollama',
+          model: 'llama3',
+        },
       },
     );
     const host = mountPoint();
@@ -151,7 +154,9 @@ describe('settings form', () => {
 
   it('reports the bridge connection state from status.get', async () => {
     stubEngine({
-      [ACTIONS.CONFIG_GET]: configFixture({ bridge: { enabled: true, port: 47829 } }),
+      [ACTIONS.CONFIG_GET]: configFixture({
+        bridge: { enabled: true, port: 47829 },
+      }),
       [ACTIONS.STATUS_GET]: statusFixture({
         bridge: { enabled: true, connected: true, port: 47829 },
       }),
@@ -200,7 +205,10 @@ describe('settings form', () => {
       apiKey: 'hunter-key',
     });
     const stored = await chrome.storage.local.get(UI_KEYS.ENRICHMENT);
-    expect(stored[UI_KEYS.ENRICHMENT]).toEqual({ provider: 'hunter', apiKey: 'hunter-key' });
+    expect(stored[UI_KEYS.ENRICHMENT]).toEqual({
+      provider: 'hunter',
+      apiKey: 'hunter-key',
+    });
   });
 
   it('reports an offline engine instead of drawing a blank form', async () => {
@@ -254,7 +262,7 @@ describe('options page', () => {
     await start(nodes);
 
     const fileInput = nodes.view.querySelector('input[type="file"]');
-    const file = new window.File([JSON.stringify({ hourlyCap: 12 })], 'settings.json', {
+    const file = new window.File([JSON.stringify({ dailyInviteCap: 12 })], 'settings.json', {
       type: 'application/json',
     });
     Object.defineProperty(fileInput, 'files', { value: [file] });
@@ -262,7 +270,9 @@ describe('options page', () => {
     clickIn(nodes.view, 'Import settings');
     await flush(14);
 
-    expect(engine.paramsFor(ACTIONS.CONFIG_SET)).toEqual({ hourlyCap: 12 });
+    expect(engine.paramsFor(ACTIONS.CONFIG_SET)).toEqual({
+      dailyInviteCap: 12,
+    });
   });
 
   it('refuses a settings file that is not JSON', async () => {
@@ -271,7 +281,9 @@ describe('options page', () => {
     await start(nodes);
 
     const fileInput = nodes.view.querySelector('input[type="file"]');
-    const file = new window.File(['not json at all'], 'settings.json', { type: 'text/plain' });
+    const file = new window.File(['not json at all'], 'settings.json', {
+      type: 'text/plain',
+    });
     Object.defineProperty(fileInput, 'files', { value: [file] });
 
     clickIn(nodes.view, 'Import settings');
@@ -306,7 +318,11 @@ describe('options page', () => {
   });
 
   it('exposes the extra cards for reuse', () => {
-    const ctx = { error: { show() {} }, status: { set() {} }, reload: async () => {} };
+    const ctx = {
+      error: { show() {} },
+      status: { set() {} },
+      reload: async () => {},
+    };
     expect(extraCards(ctx)).toHaveLength(2);
   });
 });

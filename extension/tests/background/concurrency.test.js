@@ -1,15 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ACTIONS, ERROR } from '../../src/lib/actions.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handle } from '../../src/background/engine.js';
-import { setConfig } from '../../src/lib/config.js';
-import * as quota from '../../src/background/quota.js';
-import * as queue from '../../src/background/queue.js';
-import * as storage from '../../src/lib/storage.js';
 import '../../src/background/outreach.js';
-import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
+import * as queue from '../../src/background/queue.js';
+import * as quota from '../../src/background/quota.js';
+import { ACTIONS, ERROR } from '../../src/lib/actions.js';
+import { setConfig } from '../../src/lib/config.js';
+import * as storage from '../../src/lib/storage.js';
+import inviteCreated from '../fixtures/voyager/inviteCreated.json';
 
 import profileView from '../fixtures/voyager/profileView.json';
-import inviteCreated from '../fixtures/voyager/inviteCreated.json';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 let net;
 
@@ -20,7 +20,7 @@ beforeEach(async () => {
   seedSession();
   net = routeBackground(stubFetch());
   net.route('/identity/dash/profiles', profileView);
-  await setConfig({ accountPreset: 'recruiter', businessHoursOnly: false, hourlyCap: 50 });
+  await setConfig({ accountPreset: 'recruiter', businessHoursOnly: false });
 });
 
 afterEach(() => vi.useRealTimers());
@@ -28,17 +28,12 @@ afterEach(() => vi.useRealTimers());
 describe('the storage key lock', () => {
   it('serialises read-modify-write on the same key', async () => {
     await storage.set('counter', 0);
-    await Promise.all(
-      Array.from({ length: 20 }, () => storage.update('counter', (n) => n + 1, 0)),
-    );
+    await Promise.all(Array.from({ length: 20 }, () => storage.update('counter', (n) => n + 1, 0)));
     expect(await storage.get('counter', 0)).toBe(20);
   });
 
   it('lets a different key run in parallel', async () => {
-    await Promise.all([
-      storage.update('a', () => 'A', null),
-      storage.update('b', () => 'B', null),
-    ]);
+    await Promise.all([storage.update('a', () => 'A', null), storage.update('b', () => 'B', null)]);
     expect(await storage.get('a')).toBe('A');
     expect(await storage.get('b')).toBe('B');
   });
@@ -76,10 +71,14 @@ describe('the storage key lock', () => {
       release = r;
     });
 
-    const first = storage.update('busy', async (v) => {
-      await gate;
-      return v;
-    }, 0);
+    const first = storage.update(
+      'busy',
+      async (v) => {
+        await gate;
+        return v;
+      },
+      0,
+    );
     const second = storage.update('busy', (v) => v, 0);
 
     expect(storage.lockCount()).toBeGreaterThan(0);
@@ -99,13 +98,10 @@ describe('the storage key lock', () => {
 
 describe('quota.reserve is atomic', () => {
   it('two concurrent reserves at cap - 1 cannot both pass', async () => {
-    await setConfig({ accountPreset: 'free', dailyInviteCap: 5, hourlyCap: 50 });
+    await setConfig({ accountPreset: 'free', dailyInviteCap: 5 });
     await quota.record('invite', 4); // one left
 
-    const results = await Promise.allSettled([
-      quota.reserve('invite'),
-      quota.reserve('invite'),
-    ]);
+    const results = await Promise.allSettled([quota.reserve('invite'), quota.reserve('invite')]);
 
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     const rejected = results.find((r) => r.status === 'rejected');
@@ -114,7 +110,7 @@ describe('quota.reserve is atomic', () => {
   });
 
   it('ten concurrent reserves against a cap of three count exactly three', async () => {
-    await setConfig({ accountPreset: 'free', dailyInviteCap: 3, hourlyCap: 50 });
+    await setConfig({ accountPreset: 'free', dailyInviteCap: 3 });
 
     const results = await Promise.allSettled(
       Array.from({ length: 10 }, () => quota.reserve('invite')),
@@ -125,7 +121,7 @@ describe('quota.reserve is atomic', () => {
   });
 
   it('two concurrent sends cannot take the account over a hard cap', async () => {
-    await setConfig({ accountPreset: 'free', dailyInviteCap: 1, hourlyCap: 50 });
+    await setConfig({ accountPreset: 'free', dailyInviteCap: 1 });
     net.push(inviteCreated);
     net.push(inviteCreated);
 
@@ -138,7 +134,9 @@ describe('quota.reserve is atomic', () => {
     expect(envelopes.filter((e) => e.ok)).toHaveLength(1);
     expect(envelopes.find((e) => !e.ok).error.code).toBe(ERROR.QUOTA_EXCEEDED);
     expect((await quota.snapshot('invite')).dailyUsed).toBe(1);
-    expect(net.calls.filter((c) => c.url.includes('action=verifyQuotaAndCreateV2'))).toHaveLength(1);
+    expect(net.calls.filter((c) => c.url.includes('action=verifyQuotaAndCreateV2'))).toHaveLength(
+      1,
+    );
   });
 });
 
@@ -169,7 +167,9 @@ describe('the queue survives concurrent writes', () => {
     expect(first.data.approved + second.data.approved).toBe(1);
     await queue.sendApproved();
 
-    expect(net.calls.filter((c) => c.url.includes('action=verifyQuotaAndCreateV2'))).toHaveLength(1);
+    expect(net.calls.filter((c) => c.url.includes('action=verifyQuotaAndCreateV2'))).toHaveLength(
+      1,
+    );
     expect((await queue.list())[0].status).toBe('sent');
   });
 
@@ -186,6 +186,8 @@ describe('the queue survives concurrent writes', () => {
     await Promise.all([queue.sendApproved(), queue.sendApproved(), queue.sendApproved()]);
 
     expect(await queue.list('sent')).toHaveLength(4);
-    expect(net.calls.filter((c) => c.url.includes('action=verifyQuotaAndCreateV2'))).toHaveLength(4);
+    expect(net.calls.filter((c) => c.url.includes('action=verifyQuotaAndCreateV2'))).toHaveLength(
+      4,
+    );
   });
 });

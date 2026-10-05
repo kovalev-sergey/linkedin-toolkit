@@ -4,9 +4,10 @@
  * action table anywhere in this package.
  */
 import type { z } from 'zod';
-import { PARAMS, RESULTS } from './contract.js';
+import type { PARAMS, RESULTS } from './contract.js';
 
 export type { ActionName } from './contract.js';
+
 import type { ActionName } from './contract.js';
 
 /** Params accepted by an action, inferred from the contract's zod schema. */
@@ -38,8 +39,6 @@ export type ErrorShape = {
 
 /** How much of the relevant quota is left, when the server reports it. */
 export type RateLimit = {
-  hourlyUsed: number;
-  hourlyCap: number;
   dailyUsed: number;
   dailyCap: number;
   nextAllowedAt: number;

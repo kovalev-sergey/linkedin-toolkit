@@ -19,7 +19,9 @@ const BASE = process.env.LINKEDIN_TOOLKIT_URL ?? 'http://127.0.0.1:47830';
 const TOKEN = process.env.LINKEDIN_TOOLKIT_TOKEN;
 
 if (!TOKEN) {
-  console.error('LINKEDIN_TOOLKIT_TOKEN is not set. It is the bridge token in ~/.linkedin-toolkit/config.json');
+  console.error(
+    'LINKEDIN_TOOLKIT_TOKEN is not set. It is the bridge token in ~/.linkedin-toolkit/config.json',
+  );
   process.exit(1);
 }
 
@@ -33,7 +35,10 @@ async function action<T = unknown>(name: string, params: Record<string, unknown>
 
   const envelope = (await res.json()) as
     | { ok: true; data: T; rateLimit?: Record<string, number> }
-    | { ok: false; error: { code: string; message: string; retryAfter?: number; howToFix?: string } };
+    | {
+        ok: false;
+        error: { code: string; message: string; retryAfter?: number; howToFix?: string };
+      };
 
   if (!envelope.ok) {
     // Hand the agent the structured error verbatim. These are terminal, not retryable:
@@ -50,7 +55,7 @@ async function action<T = unknown>(name: string, params: Record<string, unknown>
 const getStatus = tool({
   name: 'linkedin_get_status',
   description:
-    'Connection state, login state, Copilot/Autopilot mode, business hours, remaining daily and hourly quota per action type, queue depth. Call this before anything else.',
+    'Connection state, login state, Copilot/Autopilot mode, business hours, remaining daily quota per action type, queue depth. Call this before anything else.',
   parameters: z.object({}),
   execute: () => action('status.get').then((d) => JSON.stringify(d)),
 });
@@ -139,5 +144,8 @@ if (!brief) {
   process.exit(1);
 }
 
-const result = await run(agent, `Source 20 people for this brief and draft invites for the top 8: ${brief}`);
+const result = await run(
+  agent,
+  `Source 20 people for this brief and draft invites for the top 8: ${brief}`,
+);
 console.log(result.finalOutput);

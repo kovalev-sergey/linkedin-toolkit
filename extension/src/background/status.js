@@ -8,9 +8,9 @@
 
 import { ACTIONS } from '../lib/actions.js';
 import { getConfig, setConfig } from '../lib/config.js';
-import { register } from './engine.js';
 import { bridgeState, ensureConnected } from './bridge.js';
 import { readCampaigns } from './campaigns.js';
+import { register } from './engine.js';
 import { pendingCount } from './queue.js';
 import * as quota from './quota.js';
 import { isLoggedIn } from './voyager-core.js';
@@ -111,7 +111,6 @@ export const POPUP_ONLY_CONFIG_KEYS = Object.freeze([
   'weekdaysOnly',
   'minDelayMs',
   'maxDelayMs',
-  'hourlyCap',
   'dailyInviteCap',
   'dailyMessageCap',
   'dailyVisitCap',
@@ -163,7 +162,7 @@ export async function writeConfig(params = {}, ctx = {}) {
   const restricted = ctx.origin !== 'popup';
 
   const ignoredKeys = restricted
-    ? POPUP_ONLY_CONFIG_KEYS.filter((key) => Object.prototype.hasOwnProperty.call(requested, key))
+    ? POPUP_ONLY_CONFIG_KEYS.filter((key) => Object.hasOwn(requested, key))
     : [];
   const allowed = restricted
     ? Object.fromEntries(

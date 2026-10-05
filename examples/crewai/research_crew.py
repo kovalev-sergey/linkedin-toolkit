@@ -67,7 +67,7 @@ class StatusTool(BaseTool):
     name: str = "linkedin_get_status"
     description: str = (
         "Connection state, login state, Copilot/Autopilot mode, business hours, remaining daily "
-        "and hourly quota per action type, and queue depth. Call this before anything else."
+        "and daily quota per action type, and queue depth. Call this before anything else."
     )
     args_schema: Type[BaseModel] = NoArgs
 

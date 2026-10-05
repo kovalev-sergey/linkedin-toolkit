@@ -43,7 +43,7 @@ describe('service worker wiring', () => {
       origin: 'mcp',
     });
     await route({ action: ACTIONS.QUEUE_APPROVE, params: { ids: [queued.data.queueId] } });
-    expect((await queue.list('approved'))).toHaveLength(1);
+    expect(await queue.list('approved')).toHaveLength(1);
 
     for (const listener of mock().listeners.onAlarm) listener({ name: QUEUE_TICK_ALARM });
     // The listener is fire-and-forget; give the drain its turns.
@@ -112,7 +112,6 @@ describe('config', () => {
   it('serves the contract defaults', async () => {
     const config = await call(ACTIONS.CONFIG_GET);
     expect(config.minDelayMs).toBe(8000);
-    expect(config.hourlyCap).toBe(20);
     expect(config.dailyInviteCap).toBe(25);
     expect(config.autopilot).toBe(false);
   });
@@ -120,11 +119,10 @@ describe('config', () => {
   it('saves settings through the clamp', async () => {
     const saved = await call(ACTIONS.CONFIG_SET, {
       dailyInviteCap: 999,
-      hourlyCap: 999,
       minDelayMs: 10,
     });
     expect(saved.dailyInviteCap).toBe(HARD_CAPS.dailyInviteCap);
-    expect(saved.hourlyCap).toBe(50);
+    expect(saved).not.toHaveProperty('hourlyCap');
     expect(saved.minDelayMs).toBe(3000);
 
     const stored = await chrome.storage.local.get('config');
@@ -193,18 +191,15 @@ describe('mass unfollow is popup-only', () => {
     ACTIONS.NETWORK_UNFOLLOW_ALL,
     ACTIONS.NETWORK_UNFOLLOW_STOP,
     ACTIONS.NETWORK_UNFOLLOW_STATUS,
-  ])(
-    '%s refuses every origin but the popup',
-    async (action) => {
-      for (const origin of ['mcp', 'cli', 'campaign', 'system']) {
-        const res = await route({ action, params: {}, origin });
-        expect(res.ok).toBe(false);
-        expect(res.error.code).toBe('UNAUTHORIZED');
-        expect(res.error.message).toMatch(/only runs from the popup/);
-      }
-      expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
-    },
-  );
+  ])('%s refuses every origin but the popup', async (action) => {
+    for (const origin of ['mcp', 'cli', 'campaign', 'system']) {
+      const res = await route({ action, params: {}, origin });
+      expect(res.ok).toBe(false);
+      expect(res.error.code).toBe('UNAUTHORIZED');
+      expect(res.error.message).toMatch(/only runs from the popup/);
+    }
+    expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+  });
 
   it('still lets the popup through', async () => {
     await chrome.tabs.create({

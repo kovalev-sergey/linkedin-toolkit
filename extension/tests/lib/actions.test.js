@@ -137,7 +137,10 @@ describe('HARD_CAPS', () => {
 
 describe('validateParams', () => {
   it('rejects an unknown action', () => {
-    expect(validateParams('nope.nope', {})).toEqual({ ok: false, message: 'unknown action' });
+    expect(validateParams('nope.nope', {})).toEqual({
+      ok: false,
+      message: 'unknown action',
+    });
   });
 
   it('rejects search.people with count over 100', () => {
@@ -171,7 +174,9 @@ describe('validateParams', () => {
     // "no limit" if it slipped through, which is the opposite of the intent.
     expect(validateParams('network.unfollowAll', {})).toEqual({ ok: true });
     expect(validateParams('network.unfollowAll', { limit: 1, dryRun: true })).toEqual({ ok: true });
-    expect(validateParams('network.unfollowAll', { limit: 5000 })).toEqual({ ok: true });
+    expect(validateParams('network.unfollowAll', { limit: 5000 })).toEqual({
+      ok: true,
+    });
 
     const low = validateParams('network.unfollowAll', { limit: 0 });
     expect(low.ok).toBe(false);
@@ -205,22 +210,32 @@ describe('validateParams', () => {
     expect(validateParams('outreach.invite', {}).ok).toBe(false);
     expect(validateParams('outreach.message', { publicId: 'dom' }).ok).toBe(false);
     expect(validateParams('outreach.message', { publicId: 'dom', body: 'hi' }).ok).toBe(true);
-    expect(validateParams('outreach.inmail', { publicId: 'd', subject: 's', body: 'b' }).ok).toBe(
-      true,
-    );
+    expect(
+      validateParams('outreach.inmail', {
+        publicId: 'd',
+        subject: 's',
+        body: 'b',
+      }).ok,
+    ).toBe(true);
     expect(validateParams('outreach.comment', { postUrl: 'u', body: 'b' }).ok).toBe(true);
   });
 
   describe('the invitation note limit', () => {
     it('is the 200 characters LinkedIn allows', () => {
       expect(INVITE_NOTE_MAX).toBe(200);
-      expect(validateParams('outreach.invite', { publicId: 'dom', note: 'x'.repeat(200) }).ok).toBe(
-        true,
-      );
+      expect(
+        validateParams('outreach.invite', {
+          publicId: 'dom',
+          note: 'x'.repeat(200),
+        }).ok,
+      ).toBe(true);
     });
 
     it('refuses a longer note, and says how long it was', () => {
-      const res = validateParams('outreach.invite', { publicId: 'dom', note: 'x'.repeat(201) });
+      const res = validateParams('outreach.invite', {
+        publicId: 'dom',
+        note: 'x'.repeat(201),
+      });
       expect(res.ok).toBe(false);
       expect(res.message).toContain('201');
       expect(res.howToFix).toBe('LinkedIn limits invitation notes to 200 characters.');
@@ -233,7 +248,10 @@ describe('validateParams', () => {
 
     it('leaves messages alone — only invitations have this limit', () => {
       expect(
-        validateParams('outreach.message', { publicId: 'dom', body: 'x'.repeat(2000) }).ok,
+        validateParams('outreach.message', {
+          publicId: 'dom',
+          body: 'x'.repeat(2000),
+        }).ok,
       ).toBe(true);
     });
   });
@@ -256,9 +274,13 @@ describe('validateParams', () => {
       byteSize: 3,
       dataBase64: 'YWJj',
     };
-    expect(validateParams('outreach.message', { publicId: 'dom', body: 'Hi', attachment }).ok).toBe(
-      true,
-    );
+    expect(
+      validateParams('outreach.message', {
+        publicId: 'dom',
+        body: 'Hi',
+        attachment,
+      }).ok,
+    ).toBe(true);
     expect(
       validateParams('outreach.message', {
         publicId: 'dom',
@@ -281,7 +303,6 @@ describe('clampConfig', () => {
     const cfg = clampConfig({});
     expect(cfg.minDelayMs).toBe(8000);
     expect(cfg.maxDelayMs).toBe(15000);
-    expect(cfg.hourlyCap).toBe(20);
     expect(cfg.dailyInviteCap).toBe(25);
     expect(cfg.dailyMessageCap).toBe(50);
     expect(cfg.dailyVisitCap).toBe(100);
@@ -302,7 +323,7 @@ describe('clampConfig', () => {
     expect(clampConfig({ dailyMessageCap: 9999 }).dailyMessageCap).toBe(150);
     expect(clampConfig({ dailyVisitCap: 9999 }).dailyVisitCap).toBe(500);
     expect(clampConfig({ dailySearchCap: 99999 }).dailySearchCap).toBe(1000);
-    expect(clampConfig({ hourlyCap: 500 }).hourlyCap).toBe(50);
+    expect(clampConfig({ hourlyCap: 500 })).not.toHaveProperty('hourlyCap');
   });
 
   it('enforces the delay floor and ordering', () => {
@@ -341,7 +362,7 @@ describe('envelopes', () => {
   });
 
   it('ok() attaches rateLimit only when given', () => {
-    const rl = { hourlyUsed: 1, hourlyCap: 20, dailyUsed: 1, dailyCap: 25, nextAllowedAt: 0 };
+    const rl = { dailyUsed: 1, dailyCap: 25, nextAllowedAt: 0 };
     expect(ok('1', {}, rl).rateLimit).toEqual(rl);
     expect('rateLimit' in ok('1', {})).toBe(false);
   });
@@ -355,7 +376,10 @@ describe('envelopes', () => {
   });
 
   it('err() folds extra fields into error', () => {
-    const e = err('2', ERROR.RATE_LIMITED, 'slow down', { retryAfter: 60, howToFix: 'wait' });
+    const e = err('2', ERROR.RATE_LIMITED, 'slow down', {
+      retryAfter: 60,
+      howToFix: 'wait',
+    });
     expect(e.error).toEqual({
       code: 'RATE_LIMITED',
       message: 'slow down',

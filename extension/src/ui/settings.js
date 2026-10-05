@@ -7,8 +7,6 @@
  * engine's clamp remains the one that counts.
  */
 
-import { el, render, fmtNumber } from '../ui/dom.js';
-import { call, getLocal, setLocal, UI_KEYS } from './api.js';
 import { ACTIONS, HARD_CAPS } from '../lib/actions.js';
 import {
   aiEndpointFor,
@@ -17,18 +15,20 @@ import {
   originPatternFor,
   requestHostAccess,
 } from '../lib/permissions.js';
+import { el, fmtNumber, render } from '../ui/dom.js';
+import { call, getLocal, setLocal, UI_KEYS } from './api.js';
 import {
-  card,
-  field,
-  row,
-  input,
-  select,
-  checkbox,
-  pill,
-  errorLine,
-  statusLine,
   busyButton,
   button,
+  card,
+  checkbox,
+  errorLine,
+  field,
+  input,
+  pill,
+  row,
+  select,
+  statusLine,
 } from './components.js';
 
 const PRESETS = [
@@ -47,7 +47,6 @@ export const PRESET_DEFAULTS = {
   free: {
     minDelayMs: 12000,
     maxDelayMs: 25000,
-    hourlyCap: 15,
     dailyInviteCap: 20,
     dailyMessageCap: 30,
     dailyVisitCap: 100,
@@ -56,7 +55,6 @@ export const PRESET_DEFAULTS = {
   premium: {
     minDelayMs: 10000,
     maxDelayMs: 20000,
-    hourlyCap: 20,
     dailyInviteCap: 25,
     dailyMessageCap: 50,
     dailyVisitCap: 200,
@@ -65,7 +63,6 @@ export const PRESET_DEFAULTS = {
   salesnav: {
     minDelayMs: 9000,
     maxDelayMs: 18000,
-    hourlyCap: 25,
     dailyInviteCap: 40,
     dailyMessageCap: 80,
     dailyVisitCap: 300,
@@ -74,7 +71,6 @@ export const PRESET_DEFAULTS = {
   recruiter: {
     minDelayMs: 8000,
     maxDelayMs: 16000,
-    hourlyCap: 30,
     dailyInviteCap: 50,
     dailyMessageCap: 100,
     dailyVisitCap: 400,
@@ -151,13 +147,28 @@ export async function renderSettings(container, opts = {}) {
   /* ---------------- controls ---------------------------------------- */
 
   const preset = select(PRESETS, { value: config.accountPreset });
-  const minDelay = input({ type: 'number', min: 3000, step: 500, value: config.minDelayMs });
-  const maxDelay = input({ type: 'number', min: 3000, step: 500, value: config.maxDelayMs });
-  const hourlyCap = input({ type: 'number', min: 0, max: 50, value: config.hourlyCap });
+  const minDelay = input({
+    type: 'number',
+    min: 3000,
+    step: 500,
+    value: config.minDelayMs,
+  });
+  const maxDelay = input({
+    type: 'number',
+    min: 3000,
+    step: 500,
+    value: config.maxDelayMs,
+  });
 
   const caps = {};
   for (const [key, , hard] of CAP_FIELDS) {
-    const node = input({ type: 'number', min: 0, max: hard, value: config[key], 'data-cap': key });
+    const node = input({
+      type: 'number',
+      min: 0,
+      max: hard,
+      value: config[key],
+      'data-cap': key,
+    });
     node.addEventListener('input', () => {
       if (int(node.value) > hard) node.value = hard;
     });
@@ -167,15 +178,32 @@ export async function renderSettings(container, opts = {}) {
   const businessHoursOnly = checkbox('Only act during business hours', {
     checked: config.businessHoursOnly,
   });
-  const businessStart = input({ type: 'number', min: 0, max: 23, value: config.businessStart });
-  const businessEnd = input({ type: 'number', min: 0, max: 24, value: config.businessEnd });
-  const weekdaysOnly = checkbox('Weekdays only', { checked: config.weekdaysOnly });
+  const businessStart = input({
+    type: 'number',
+    min: 0,
+    max: 23,
+    value: config.businessStart,
+  });
+  const businessEnd = input({
+    type: 'number',
+    min: 0,
+    max: 24,
+    value: config.businessEnd,
+  });
+  const weekdaysOnly = checkbox('Weekdays only', {
+    checked: config.weekdaysOnly,
+  });
   const warmup = checkbox('Warm up a new account over 14 days', {
     checked: Boolean(config.warmup && config.warmup.enabled),
   });
 
-  const aiProvider = select(AI_PROVIDERS, { value: (config.ai && config.ai.provider) || 'none' });
-  const aiModel = input({ placeholder: 'model name', value: (config.ai && config.ai.model) || '' });
+  const aiProvider = select(AI_PROVIDERS, {
+    value: (config.ai && config.ai.provider) || 'none',
+  });
+  const aiModel = input({
+    placeholder: 'model name',
+    value: (config.ai && config.ai.model) || '',
+  });
   const aiBaseUrl = input({
     placeholder: 'http://127.0.0.1:11434',
     value: (config.ai && config.ai.baseUrl) || '',
@@ -203,7 +231,10 @@ export async function renderSettings(container, opts = {}) {
    * granted at install time, so the user grants this one when they pick it.
    */
   const aiEndpoint = () =>
-    aiEndpointFor({ provider: aiProvider.value, baseUrl: aiBaseUrl.value.trim() });
+    aiEndpointFor({
+      provider: aiProvider.value,
+      baseUrl: aiBaseUrl.value.trim(),
+    });
 
   const aiAccess = statusLine('');
 
@@ -244,7 +275,9 @@ export async function renderSettings(container, opts = {}) {
     value: config.webhookUrl || '',
   });
 
-  const enrichProvider = select(ENRICH_PROVIDERS, { value: storedEnrichment.provider || 'none' });
+  const enrichProvider = select(ENRICH_PROVIDERS, {
+    value: storedEnrichment.provider || 'none',
+  });
   const enrichKey = input({
     type: 'password',
     placeholder: 'provider API key',
@@ -256,7 +289,6 @@ export async function renderSettings(container, opts = {}) {
     if (!suggested) return;
     minDelay.value = suggested.minDelayMs;
     maxDelay.value = suggested.maxDelayMs;
-    hourlyCap.value = suggested.hourlyCap;
     for (const [key, , hard] of CAP_FIELDS) caps[key].value = Math.min(suggested[key], hard);
     status.set(`Applied the ${preset.value} pacing. Save to keep it.`);
   });
@@ -267,7 +299,6 @@ export async function renderSettings(container, opts = {}) {
       accountPreset: preset.value,
       minDelayMs: int(minDelay.value, config.minDelayMs),
       maxDelayMs: int(maxDelay.value, config.maxDelayMs),
-      hourlyCap: int(hourlyCap.value, config.hourlyCap),
       businessHoursOnly: businessHoursOnly.input.checked,
       businessStart: int(businessStart.value, config.businessStart),
       businessEnd: int(businessEnd.value, config.businessEnd),
@@ -280,7 +311,10 @@ export async function renderSettings(container, opts = {}) {
       },
       webhookUrl: webhookUrl.value.trim(),
       // Not part of the contract Config yet — the enrichment provider block.
-      enrichment: { provider: enrichProvider.value, apiKey: enrichKey.value.trim() },
+      enrichment: {
+        provider: enrichProvider.value,
+        apiKey: enrichKey.value.trim(),
+      },
     };
     for (const [key, , hard] of CAP_FIELDS) patch[key] = Math.min(int(caps[key].value, 0), hard);
 
@@ -302,7 +336,13 @@ export async function renderSettings(container, opts = {}) {
     return saved;
   }
 
-  const ctx = { collect, save, reload: () => renderSettings(container, opts), error: err, status };
+  const ctx = {
+    collect,
+    save,
+    reload: () => renderSettings(container, opts),
+    error: err,
+    status,
+  };
 
   /* ---------------- cards -------------------------------------------- */
 
@@ -312,20 +352,25 @@ export async function renderSettings(container, opts = {}) {
 
     card(
       'Account',
-      { hint: 'Choosing a preset fills in pacing that suits that account type.' },
+      {
+        hint: 'Choosing a preset fills in pacing that suits that account type.',
+      },
       field('Account type', preset),
     ),
 
     card(
       'Pace',
-      { hint: 'A random delay between these bounds sits in front of every action.' },
+      {
+        hint: 'A random delay between these bounds sits in front of every action.',
+      },
       row(field('Min delay (ms)', minDelay), field('Max delay (ms)', maxDelay)),
-      field('Actions per hour', hourlyCap, 'Hard ceiling: 50'),
     ),
 
     card(
       'Daily caps',
-      { hint: 'The hard caps live in the extension and no client can raise them.' },
+      {
+        hint: 'The hard caps live in the extension and no client can raise them.',
+      },
       el(
         'div',
         { class: 'grid-2' },
@@ -345,7 +390,9 @@ export async function renderSettings(container, opts = {}) {
 
     card(
       'AI provider',
-      { hint: 'Keys are stored locally and only ever sent to the provider you pick.' },
+      {
+        hint: 'Keys are stored locally and only ever sent to the provider you pick.',
+      },
       field('Provider', aiProvider),
       aiFields.model,
       aiFields.baseUrl,
@@ -421,7 +468,9 @@ export async function renderSettings(container, opts = {}) {
         busyButton(
           'Grant access',
           async () => {
-            const endpoint = enrichmentEndpointFor({ provider: enrichProvider.value });
+            const endpoint = enrichmentEndpointFor({
+              provider: enrichProvider.value,
+            });
             if (!endpoint) {
               status.set('Pick an enrichment provider first.');
               return;
@@ -441,7 +490,10 @@ export async function renderSettings(container, opts = {}) {
     el(
       'div',
       { class: 'row' },
-      busyButton('Save settings', () => save(), { variant: 'primary', error: err }),
+      busyButton('Save settings', () => save(), {
+        variant: 'primary',
+        error: err,
+      }),
       button('Reload', () => renderSettings(container, opts)),
     ),
 

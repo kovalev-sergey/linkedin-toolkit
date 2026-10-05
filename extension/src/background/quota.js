@@ -10,9 +10,9 @@
  * the hard cap, then scaled by the warm-up ramp.
  */
 
-import { ERROR, EVENTS, EngineError, HARD_CAPS } from '../lib/actions.js';
+import { EngineError, ERROR, EVENTS, HARD_CAPS } from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
-import { K, get, set, withKeyLock } from '../lib/storage.js';
+import { get, K, set, withKeyLock } from '../lib/storage.js';
 import { emit } from './events.js';
 
 /* ================================================================== */
@@ -87,23 +87,17 @@ function emptyCounts() {
 }
 
 /**
- * The stored counter state, rolled forward to the current day and hour.
+ * The stored counter state, rolled forward to the current day.
  * Rolling is done on read so a service worker that was asleep at midnight
  * still reports the right numbers.
  */
 async function readState(now = new Date()) {
   const stored = (await get(K.QUOTA, null)) || {};
   const day = dayKey(now);
-  const hour = now.getHours();
 
   const state = {
     day,
-    hour,
     daily: stored.day === day ? { ...emptyCounts(), ...(stored.daily || {}) } : emptyCounts(),
-    hourly:
-      stored.day === day && stored.hour === hour
-        ? { ...emptyCounts(), ...(stored.hourly || {}) }
-        : emptyCounts(),
     backoffUntil: stored.backoffUntil || 0,
     challenge: stored.challenge || null,
   };
@@ -133,18 +127,6 @@ function warmupDayIndex(config, now = Date.now()) {
   const startedAt = config.warmup && config.warmup.startedAt;
   if (!startedAt) return 0;
   return Math.floor((now - startedAt) / (24 * HOUR));
-}
-
-/**
- * Effective hourly cap for a bucket.
- *
- * `config.hourlyCap` (ceiling 50) paces the actions LinkedIn attributes to a
- * human. Search is metered in *results*, not clicks, so a single 100-result
- * page would blow a 50/hour ceiling; the search bucket is therefore governed
- * by its daily cap alone and reports that as its hourly ceiling.
- */
-export function hourlyCapFor(kind, config, dailyCap) {
-  return WRITE_KINDS.has(kind) ? config.hourlyCap : dailyCap;
 }
 
 /** Effective daily cap for a bucket: min(config, hard) × warm-up. */
@@ -218,7 +200,10 @@ export async function noteChallenge() {
     return writeState(current);
   });
 
-  if (fresh) await emit(EVENTS.CHALLENGE_DETECTED, { detectedAt: state.challenge.detectedAt });
+  if (fresh)
+    await emit(EVENTS.CHALLENGE_DETECTED, {
+      detectedAt: state.challenge.detectedAt,
+    });
   return state;
 }
 
@@ -305,20 +290,13 @@ async function gate(kind, cost) {
       `Outside the configured window (${config.businessStart}:00–${config.businessEnd}:00${
         config.weekdaysOnly ? ', weekdays only' : ''
       }).`,
-      { howToFix: 'Wait for the window, or turn off businessHoursOnly in settings.' },
+      {
+        howToFix: 'Wait for the window, or turn off businessHoursOnly in settings.',
+      },
     );
   }
 
   const dailyCap = await dailyCapFor(kind, config);
-  const hourlyCap = hourlyCapFor(kind, config, dailyCap);
-  if (state.hourly[kind] + cost > hourlyCap) {
-    throw new EngineError(
-      ERROR.QUOTA_EXCEEDED,
-      `Hourly cap reached for ${kind} (${hourlyCap}/hour).`,
-      { retryAfter: nextHourAt(now) - now },
-    );
-  }
-
   if (state.daily[kind] + cost > dailyCap) {
     await emit(EVENTS.QUOTA_HIT, {
       kind,
@@ -326,14 +304,12 @@ async function gate(kind, cost) {
       cap: dailyCap,
       resetsAt: nextDayAt(now),
     });
-    throw new EngineError(
-      ERROR.QUOTA_EXCEEDED,
-      `Daily ${kind} cap reached (${dailyCap}/day).`,
-      { retryAfter: nextDayAt(now) - now },
-    );
+    throw new EngineError(ERROR.QUOTA_EXCEEDED, `Daily ${kind} cap reached (${dailyCap}/day).`, {
+      retryAfter: nextDayAt(now) - now,
+    });
   }
 
-  return toRateLimit(state, kind, hourlyCap, dailyCap, now);
+  return toRateLimit(state, kind, dailyCap, now);
 }
 
 /** Count `n` units against a bucket (search records the number of results). */
@@ -360,7 +336,6 @@ export async function release(kind, n = 1) {
     if (!units) return (await readState()).daily[kind];
     const state = await readState();
     state.daily[kind] = Math.max(0, state.daily[kind] - units);
-    state.hourly[kind] = Math.max(0, state.hourly[kind] - units);
     await writeState(state);
     return state.daily[kind];
   });
@@ -372,15 +347,8 @@ async function bump(kind, n) {
   if (!units) return (await readState()).daily[kind];
   const state = await readState();
   state.daily[kind] += units;
-  state.hourly[kind] += units;
   await writeState(state);
   return state.daily[kind];
-}
-
-function nextHourAt(now) {
-  const d = new Date(now);
-  d.setMinutes(0, 0, 0);
-  return d.getTime() + HOUR;
 }
 
 function nextDayAt(now) {
@@ -389,16 +357,13 @@ function nextDayAt(now) {
   return d.getTime() + 24 * HOUR;
 }
 
-function toRateLimit(state, kind, hourlyCap, dailyCap, now) {
+function toRateLimit(state, kind, dailyCap, now) {
   let nextAllowedAt = 0;
   if (state.challenge) nextAllowedAt = Number.MAX_SAFE_INTEGER;
   else if (state.backoffUntil > now) nextAllowedAt = state.backoffUntil;
-  else if (state.hourly[kind] >= hourlyCap) nextAllowedAt = nextHourAt(now);
   else if (state.daily[kind] >= dailyCap) nextAllowedAt = nextDayAt(now);
 
   return {
-    hourlyUsed: state.hourly[kind],
-    hourlyCap,
     dailyUsed: state.daily[kind],
     dailyCap,
     nextAllowedAt,
@@ -412,7 +377,7 @@ export async function snapshot(kind) {
   const config = await getConfig();
   const state = await readState(new Date(now));
   const dailyCap = await dailyCapFor(kind, config);
-  return toRateLimit(state, kind, hourlyCapFor(kind, config, dailyCap), dailyCap, now);
+  return toRateLimit(state, kind, dailyCap, now);
 }
 
 /** RateLimit for all four buckets — the `quotas` field of `Status`. */

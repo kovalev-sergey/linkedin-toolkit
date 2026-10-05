@@ -50,12 +50,33 @@ type Seed = [
 
 /** 25 invented people at invented companies. */
 const SEEDS: Seed[] = [
-  ['Marisol', 'Adeyemi', 'VP Platform Engineering', 'Northwind Robotics', 'London, United Kingdom', 2],
+  [
+    'Marisol',
+    'Adeyemi',
+    'VP Platform Engineering',
+    'Northwind Robotics',
+    'London, United Kingdom',
+    2,
+  ],
   ['Tobias', 'Reinhardt', 'Head of Infrastructure', 'Bellhaven Analytics', 'Berlin, Germany', 2],
-  ['Priya', 'Ranganathan', 'Director of Engineering', 'Quillstone Systems', 'Manchester, United Kingdom', 1],
+  [
+    'Priya',
+    'Ranganathan',
+    'Director of Engineering',
+    'Quillstone Systems',
+    'Manchester, United Kingdom',
+    1,
+  ],
   ['Émile', 'Ducharme', 'Staff Site Reliability Engineer', 'Fernwood Labs', 'Montréal, Canada', 3],
   ['Nadia', 'Karimov', 'CTO', 'Marrowgate Health', 'Amsterdam, Netherlands', 2],
-  ['Callum', 'Whitfield', 'Engineering Manager, Payments', 'Tidewater Logistics', 'Bristol, United Kingdom', 2],
+  [
+    'Callum',
+    'Whitfield',
+    'Engineering Manager, Payments',
+    'Tidewater Logistics',
+    'Bristol, United Kingdom',
+    2,
+  ],
   ['Ingrid', 'Halvorsen', 'Principal Engineer', 'Ashgrove Bioscience', 'Oslo, Norway', 3],
   ['Rafael', 'Sotomayor', 'Head of Data Platform', 'Calderon Freight', 'Madrid, Spain', 2],
   ['Wenjun', 'Xiao', 'Director, Developer Experience', 'Pinemark Software', 'Dublin, Ireland', 1],
@@ -68,11 +89,25 @@ const SEEDS: Seed[] = [
   ['Amara', 'Nwosu', 'Head of SRE', 'Tidewater Logistics', 'Lisbon, Portugal', 2],
   ['Bjorn', 'Lindqvist', 'VP Technology', 'Ashgrove Bioscience', 'Stockholm, Sweden', 2],
   ['Yasmin', 'Haddad', 'Director of Cloud Platform', 'Calderon Freight', 'Paris, France', 3],
-  ['Gareth', 'Pemberton', 'Engineering Lead, Core Services', 'Pinemark Software', 'Cardiff, United Kingdom', 2],
+  [
+    'Gareth',
+    'Pemberton',
+    'Engineering Lead, Core Services',
+    'Pinemark Software',
+    'Cardiff, United Kingdom',
+    2,
+  ],
   ['Elena', 'Vasquez', 'Head of Infrastructure', 'Verity Loop', 'Barcelona, Spain', 2],
   ['Kofi', 'Mensah', 'Principal Platform Engineer', 'Northwind Robotics', 'Accra, Ghana', 3],
   ['Astrid', 'Bergström', 'CTO', 'Bellhaven Analytics', 'Helsinki, Finland', 2],
-  ['Ravi', 'Chandrasekaran', 'Director of Engineering', 'Quillstone Systems', 'Bengaluru, India', 2],
+  [
+    'Ravi',
+    'Chandrasekaran',
+    'Director of Engineering',
+    'Quillstone Systems',
+    'Bengaluru, India',
+    2,
+  ],
   ['Freya', 'Ashworth', 'Head of Developer Platform', 'Fernwood Labs', 'Leeds, United Kingdom', 1],
   ['Mateo', 'Iglesias', 'VP Infrastructure', 'Marrowgate Health', 'Valencia, Spain', 2],
 ];
@@ -131,7 +166,8 @@ export const FAKE_COMPANIES = COMPANY_NAMES.map((name, index) => ({
   url: `https://www.linkedin.com/company/${companySlug(name)}/`,
   industry: 'Software Development',
   size: ['51-200', '201-500', '501-1,000', '1,001-5,000'][index % 4],
-  hq: FAKE_PROFILES.find((profile) => profile.company === name)?.location ?? 'London, United Kingdom',
+  hq:
+    FAKE_PROFILES.find((profile) => profile.company === name)?.location ?? 'London, United Kingdom',
   website: `https://${companySlug(name)}.example`,
   description: `${name} is a fictional company used for the LinkedIn Toolkit demo dataset.`,
   followerCount: 1200 + index * 830,
@@ -142,7 +178,8 @@ const profileFor = (publicId: string) =>
   FAKE_PROFILES.find((profile) => profile.publicId === publicId);
 
 type DemoStep = {
-  type: 'view' | 'follow' | 'invite' | 'message' | 'inmail' | 'like' | 'comment' | 'wait' | 'branch';
+  type:
+    'view' | 'follow' | 'invite' | 'message' | 'inmail' | 'like' | 'comment' | 'wait' | 'branch';
   note?: string;
   body?: string;
   waitMs?: number;
@@ -225,7 +262,10 @@ export function createDemoState() {
       steps: [
         { type: 'view' as const },
         { type: 'wait' as const, waitMs: 2 * DAY },
-        { type: 'invite' as const, note: 'Hi {{firstName}}, enjoyed your take on platform tooling.' },
+        {
+          type: 'invite' as const,
+          note: 'Hi {{firstName}}, enjoyed your take on platform tooling.',
+        },
         { type: 'wait' as const, waitMs: 3 * DAY },
         { type: 'message' as const, body: 'Thanks for connecting, {{firstName}} — worth a chat?' },
       ],
@@ -247,7 +287,10 @@ export function createDemoState() {
       steps: [
         { type: 'follow' as const },
         { type: 'wait' as const, waitMs: DAY },
-        { type: 'invite' as const, note: 'Hallo {{firstName}}, kurze Frage zu eurem Platform-Team.' },
+        {
+          type: 'invite' as const,
+          note: 'Hallo {{firstName}}, kurze Frage zu eurem Platform-Team.',
+        },
       ],
       status: 'paused' as 'active' | 'paused' | 'completed',
       createdAt: CAPTURED_AT - 6 * DAY,
@@ -411,7 +454,12 @@ function packFor(row: Record<string, unknown>, index: number) {
 
   return {
     row,
-    resolved: { row, kind: 'person' as const, publicId: profile.publicId, confidence: 0.93 - index * 0.04 },
+    resolved: {
+      row,
+      kind: 'person' as const,
+      publicId: profile.publicId,
+      confidence: 0.93 - index * 0.04,
+    },
     profile,
     company,
     recentPosts: [
@@ -527,10 +575,10 @@ export function createDemoHandlers(emit: (event: string, payload: unknown) => vo
       autopilot: false,
       businessHours: true,
       quotas: {
-        invite: { hourlyUsed: 3, hourlyCap: 20, dailyUsed: 18, dailyCap: 100, nextAllowedAt: 0 },
-        message: { hourlyUsed: 1, hourlyCap: 20, dailyUsed: 7, dailyCap: 150, nextAllowedAt: 0 },
-        visit: { hourlyUsed: 9, hourlyCap: 50, dailyUsed: 64, dailyCap: 500, nextAllowedAt: 0 },
-        search: { hourlyUsed: 2, hourlyCap: 50, dailyUsed: 120, dailyCap: 1000, nextAllowedAt: 0 },
+        invite: { dailyUsed: 18, dailyCap: 100, nextAllowedAt: 0 },
+        message: { dailyUsed: 7, dailyCap: 150, nextAllowedAt: 0 },
+        visit: { dailyUsed: 64, dailyCap: 500, nextAllowedAt: 0 },
+        search: { dailyUsed: 120, dailyCap: 1000, nextAllowedAt: 0 },
       },
       queue: { pending: state.queue.filter((item) => item.status === 'pending').length },
       campaigns: {
@@ -554,21 +602,41 @@ export function createDemoHandlers(emit: (event: string, payload: unknown) => vo
             skills: ['Kubernetes', 'Platform engineering', 'Go'],
             experience: [
               { title: profile.title, company: profile.company, start: '2023' },
-              { title: 'Senior Engineer', company: 'Hollowmere Systems', start: '2019', end: '2023' },
+              {
+                title: 'Senior Engineer',
+                company: 'Hollowmere Systems',
+                start: '2019',
+                end: '2023',
+              },
             ],
-            education: [{ school: 'Ashcombe University', degree: 'BSc', field: 'Computer Science' }],
+            education: [
+              { school: 'Ashcombe University', degree: 'BSc', field: 'Computer Science' },
+            ],
           }
         : profile;
     },
     'profile.export': (params: any) => {
       const urls: string[] = params?.urls ?? [];
       const profiles = urls
-        .map((url) => profileFor(String(url).replace(/.*\/in\//, '').replace(/\/$/, '')))
+        .map((url) =>
+          profileFor(
+            String(url)
+              .replace(/.*\/in\//, '')
+              .replace(/\/$/, ''),
+          ),
+        )
         .filter(Boolean);
       return {
         profiles,
         failed: urls
-          .filter((url) => !profileFor(String(url).replace(/.*\/in\//, '').replace(/\/$/, '')))
+          .filter(
+            (url) =>
+              !profileFor(
+                String(url)
+                  .replace(/.*\/in\//, '')
+                  .replace(/\/$/, ''),
+              ),
+          )
           .map((url) => ({ url, error: 'not in the demo dataset' })),
       };
     },
@@ -706,7 +774,8 @@ export function createDemoHandlers(emit: (event: string, payload: unknown) => vo
       const list = findList(params?.listId);
       if (!list) throw new Error(`no such list ${params?.listId}`);
       const incoming: any[] =
-        params?.profiles ?? (params?.publicIds ?? []).map((id: string) => profileFor(id)).filter(Boolean);
+        params?.profiles ??
+        (params?.publicIds ?? []).map((id: string) => profileFor(id)).filter(Boolean);
       let added = 0;
       let duplicates = 0;
       for (const profile of incoming) {
@@ -746,7 +815,10 @@ export function createDemoHandlers(emit: (event: string, payload: unknown) => vo
       return { ok: true };
     },
     'list.importCsv': (params: any) => {
-      const rows = String(params?.csv ?? '').trim().split('\n').slice(1);
+      const rows = String(params?.csv ?? '')
+        .trim()
+        .split('\n')
+        .slice(1);
       return { added: rows.length, duplicates: 0, invalid: 0 };
     },
 
@@ -842,7 +914,9 @@ export function createDemoHandlers(emit: (event: string, payload: unknown) => vo
     'export.csv': () => ({
       csv: ['publicId,fullName,title,company,location']
         .concat(
-          FAKE_PROFILES.map((p) => [p.publicId, p.fullName, p.title, p.company, p.location].join(',')),
+          FAKE_PROFILES.map((p) =>
+            [p.publicId, p.fullName, p.title, p.company, p.location].join(','),
+          ),
         )
         .join('\n'),
       filename: 'demo-profiles.csv',
@@ -910,7 +984,6 @@ export function createDemoHandlers(emit: (event: string, payload: unknown) => vo
 const FAKE_CONFIG = {
   minDelayMs: 5000,
   maxDelayMs: 15000,
-  hourlyCap: 20,
   dailyInviteCap: 100,
   dailyMessageCap: 150,
   dailyVisitCap: 500,

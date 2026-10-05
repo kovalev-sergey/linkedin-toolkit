@@ -19,7 +19,12 @@
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
           "conditions": [
             {
               "id": "cond-invite-accepted",
@@ -55,7 +60,10 @@
       "typeVersion": 4.2,
       "position": [90, -80],
       "credentials": {
-        "httpHeaderAuth": { "id": "linkedin-toolkit-token", "name": "LinkedIn Toolkit bearer token" }
+        "httpHeaderAuth": {
+          "id": "linkedin-toolkit-token",
+          "name": "LinkedIn Toolkit bearer token"
+        }
       },
       "notes": "Header Auth credential: name = Authorization, value = Bearer <bridge token from ~/.linkedin-toolkit/config.json>"
     },
@@ -102,7 +110,10 @@
       "typeVersion": 4.2,
       "position": [530, -80],
       "credentials": {
-        "httpHeaderAuth": { "id": "linkedin-toolkit-token", "name": "LinkedIn Toolkit bearer token" }
+        "httpHeaderAuth": {
+          "id": "linkedin-toolkit-token",
+          "name": "LinkedIn Toolkit bearer token"
+        }
       },
       "notes": "In Copilot mode this returns { ok: true, data: { status: 'queued', queueId } }. Nothing has been sent. A human approves it — in the extension popup, or by opening the link the next node sends."
     },
@@ -154,9 +165,12 @@
       "typeVersion": 4.2,
       "position": [530, 200],
       "credentials": {
-        "httpHeaderAuth": { "id": "linkedin-toolkit-token", "name": "LinkedIn Toolkit bearer token" }
+        "httpHeaderAuth": {
+          "id": "linkedin-toolkit-token",
+          "name": "LinkedIn Toolkit bearer token"
+        }
       },
-      "notes": "Approval does not mean immediate send. The engine still paces it: jittered delay, business hours, hourly and daily caps, and the hard ceiling of 150 messages a day that no client can raise."
+      "notes": "Approval does not mean immediate send. The engine still paces it: jittered delay, business hours, and daily caps, including the hard ceiling of 150 messages a day that no client can raise."
     },
     {
       "parameters": {

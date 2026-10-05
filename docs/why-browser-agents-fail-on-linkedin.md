@@ -150,7 +150,7 @@ Which means:
 - **No session theft.** No cookie is exported, imported, or shared. There is no hosted session,
   because there is no host. If you are not logged into LinkedIn in Chrome, the tool does nothing.
 - **Human pacing by construction.** The engine spaces every action with jittered delays,
-  hourly and daily caps, a business-hours window, and a 14-day warm-up ramp for new accounts. The
+  daily caps, a business-hours window, and a 14-day warm-up ramp for new accounts. The
   caps are enforced in the extension, below every client: 100 invites, 150 messages, 500 profile
   visits, 1,000 search results per day, and no MCP call, CLI flag or config file can raise them.
 - **Challenges stop everything.** A security check — a 451, or the far more usual redirect to

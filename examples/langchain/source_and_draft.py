@@ -65,8 +65,8 @@ def action(name: str, **params: Any) -> Any:
 
 @tool
 def linkedin_get_status() -> str:
-    """Connection state, login state, Copilot/Autopilot mode, business hours, remaining daily and
-    hourly quota per action type, and queue depth. Call this before anything else."""
+    """Connection state, login state, Copilot/Autopilot mode, business hours, remaining daily
+    quota per action type, and queue depth. Call this before anything else."""
     return json.dumps(action("status.get"))
 
 

@@ -674,6 +674,39 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         "body": {
           "type": "string"
         },
+        "threadId": {
+          "type": "string"
+        },
+        "attachment": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "mimeType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "byteSize": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 10485760
+            },
+            "dataBase64": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+            }
+          },
+          "required": [
+            "name",
+            "mimeType",
+            "byteSize",
+            "dataBase64"
+          ],
+          "additionalProperties": false
+        },
         "dry_run": {
           "type": "boolean"
         }
@@ -979,7 +1012,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     "name": "linkedin_queue_list",
     "action": "queue.list",
-    "description": "List items in the human-approval queue, optionally filtered by status (\"pending\", \"approved\", \"rejected\", \"sent\" or \"failed\"). In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting, and poll it after linkedin_queue_approve to see what actually sent. Returns queue items with their action, params and target profile; a failed item carries result.error.",
+    "description": "List items in the human-approval queue, optionally filtered by status (\"pending\", \"approved\", \"rejected\" or \"sent\"). In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting, and poll it after linkedin_queue_approve to see what actually sent. Delivery errors return the draft to pending and carry result.error.",
     "write": false,
     "parameters": {
       "type": "object",
@@ -990,8 +1023,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
             "pending",
             "approved",
             "rejected",
-            "sent",
-            "failed"
+            "sent"
           ]
         }
       },
@@ -1001,7 +1033,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     "name": "linkedin_queue_approve",
     "action": "queue.approve",
-    "description": "Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved} immediately — the count marked approved, not sent. The extension then sends them one at a time at human pace, which takes seconds to minutes, so watch queue_item_sent events or poll linkedin_queue_list (status \"sent\" or \"failed\") rather than assuming the writes have landed when this returns. An edited note longer than 200 characters is refused here with INVALID_PARAMS and nothing is approved.",
+    "description": "Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved} immediately — the count marked approved, not sent. The extension then sends them one at a time at human pace, which takes seconds to minutes, so watch queue_item_sent and queue_item_blocked events or poll linkedin_queue_list; delivery errors remain attached to pending drafts for retry. An edited note longer than 200 characters is refused here with INVALID_PARAMS and nothing is approved.",
     "write": true,
     "parameters": {
       "type": "object",

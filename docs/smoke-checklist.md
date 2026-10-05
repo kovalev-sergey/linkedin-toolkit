@@ -30,7 +30,7 @@ checklist covers what only a browser can: the real service worker, real
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Open the popup **while signed out of LinkedIn**          | "LinkedIn signed out" in red, and a line telling you to sign in                                         |
 | Sign in to linkedin.com in another tab, reopen the popup | "LinkedIn signed in" in green; the header shows "LinkedIn ✓" and "Copilot"                              |
-| Read the quota card                                      | Four bars — invite, message, visit, search — each showing `used / cap` and the hourly figure underneath |
+| Read the quota card                                      | Four bars — invite, message, visit, search — each showing daily `used / cap` |
 | Read the bridge badge                                    | "bridge off" until the bridge is enabled in Settings                                                    |
 | Click **Switch to Autopilot**                            | A confirmation dialog appears first. Nothing changes until you confirm                                  |
 | Cancel it                                                | Mode stays Copilot                                                                                      |

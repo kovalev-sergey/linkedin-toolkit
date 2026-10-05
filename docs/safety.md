@@ -32,7 +32,7 @@ These are ceilings, not recommendations. Your own settings should be well below 
 ### 2. Human pacing
 
 Every action is spaced by a randomised delay (8–15 seconds by default, configurable, jittered so
-the intervals are never uniform). Hourly caps sit under the daily ones. Actions only fire inside
+the intervals are never uniform). Actions only fire inside
 your configured business-hours window, on weekdays if you choose. Sequence steps are days apart,
 not minutes.
 

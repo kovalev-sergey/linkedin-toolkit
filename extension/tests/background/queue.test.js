@@ -7,10 +7,9 @@ import * as quota from '../../src/background/quota.js';
 import { ACTIONS, ERROR } from '../../src/lib/actions.js';
 import { setConfig } from '../../src/lib/config.js';
 import * as storage from '../../src/lib/storage.js';
-import { routeBackground, seedSession, status, stubFetch } from '../helpers/net.js';
-
 import inviteCreated from '../fixtures/voyager/inviteCreated.json';
 import profileView from '../fixtures/voyager/profileView.json';
+import { routeBackground, seedSession, status, stubFetch } from '../helpers/net.js';
 
 let net;
 let seen;
@@ -70,7 +69,11 @@ describe('origin rules', () => {
 
     const items = await queue.list('pending');
     expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ action: ACTIONS.OUTREACH_INVITE, origin, status: 'pending' });
+    expect(items[0]).toMatchObject({
+      action: ACTIONS.OUTREACH_INVITE,
+      origin,
+      status: 'pending',
+    });
     expect(eventNames()).toContain('queue_item_added');
   });
 
@@ -156,20 +159,22 @@ describe('the send path', () => {
 
   it('follow, like and view send directly whatever the origin', async () => {
     net.push(profileView);
-    expect((await handle(ACTIONS.OUTREACH_VIEW, { publicId: 'adalovelace' }, 'mcp')).data.status).toBe(
-      'sent',
-    );
+    expect(
+      (await handle(ACTIONS.OUTREACH_VIEW, { publicId: 'adalovelace' }, 'mcp')).data.status,
+    ).toBe('sent');
     net.push(profileView);
     net.push({});
-    expect((await handle(ACTIONS.OUTREACH_FOLLOW, { publicId: 'adalovelace' }, 'mcp')).data.status).toBe(
-      'sent',
-    );
+    expect(
+      (await handle(ACTIONS.OUTREACH_FOLLOW, { publicId: 'adalovelace' }, 'mcp')).data.status,
+    ).toBe('sent');
     net.push({});
     expect(
       (
         await handle(
           ACTIONS.OUTREACH_LIKE,
-          { postUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:7000000000000000001/' },
+          {
+            postUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:7000000000000000001/',
+          },
           'mcp',
         )
       ).data.status,
@@ -200,16 +205,26 @@ describe('the send path', () => {
 
   it('a profile with no urn is read again, metered, rather than resolved for free', async () => {
     // A cached record from a search hit: no urn, and never profile-viewed.
-    await storage.putProfile({ publicId: 'adalovelace', fullName: 'Ada Lovelace', urn: '' });
+    await storage.putProfile({
+      publicId: 'adalovelace',
+      fullName: 'Ada Lovelace',
+      urn: '',
+    });
 
     net.push(profileView); // the metered read that actually has the urn
     net.push(inviteCreated); // the invite
 
-    const res = await handle(ACTIONS.OUTREACH_INVITE, { publicId: 'adalovelace', note: 'Hi' }, 'popup');
+    const res = await handle(
+      ACTIONS.OUTREACH_INVITE,
+      { publicId: 'adalovelace', note: 'Hi' },
+      'popup',
+    );
 
     expect(res.ok).toBe(true);
     expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
-    expect(net.calls[net.calls.length - 1].json.invitee.inviteeUnion.memberProfile).toContain('fsd_profile');
+    expect(net.calls[net.calls.length - 1].json.invitee.inviteeUnion.memberProfile).toContain(
+      'fsd_profile',
+    );
   });
 
   it('gives up rather than sending when no urn can be found at all', async () => {
@@ -231,13 +246,19 @@ describe('the send path', () => {
 
       const res = await handle(
         ACTIONS.OUTREACH_INVITE,
-        { publicId: 'adalovelace', note: 'Hi', profileUrn: 'urn:li:fsd_profile:HANDED_IN' },
+        {
+          publicId: 'adalovelace',
+          note: 'Hi',
+          profileUrn: 'urn:li:fsd_profile:HANDED_IN',
+        },
         origin,
       );
 
       expect(res.data.status).toBe('sent');
       expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
-      expect(net.calls[net.calls.length - 1].json.invitee.inviteeUnion.memberProfile).not.toContain('HANDED_IN');
+      expect(net.calls[net.calls.length - 1].json.invitee.inviteeUnion.memberProfile).not.toContain(
+        'HANDED_IN',
+      );
     });
 
     it('strips recipientUrn from an agent message', async () => {
@@ -247,7 +268,11 @@ describe('the send path', () => {
 
       await handle(
         ACTIONS.OUTREACH_MESSAGE,
-        { publicId: 'adalovelace', body: 'Hello', recipientUrn: 'urn:li:fsd_profile:HANDED_IN' },
+        {
+          publicId: 'adalovelace',
+          body: 'Hello',
+          recipientUrn: 'urn:li:fsd_profile:HANDED_IN',
+        },
         'mcp',
       );
 
@@ -269,13 +294,19 @@ describe('the send path', () => {
       );
 
       expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
-      expect(net.calls[net.calls.length - 1].json.invitee.inviteeUnion.memberProfile).not.toBe('not-a-urn');
+      expect(net.calls[net.calls.length - 1].json.invitee.inviteeUnion.memberProfile).not.toBe(
+        'not-a-urn',
+      );
     });
 
     it('never lands in the queue item either', async () => {
       const res = await handle(
         ACTIONS.OUTREACH_INVITE,
-        { publicId: 'adalovelace', note: 'Hi', profileUrn: 'urn:li:fsd_profile:HANDED_IN' },
+        {
+          publicId: 'adalovelace',
+          note: 'Hi',
+          profileUrn: 'urn:li:fsd_profile:HANDED_IN',
+        },
         'mcp',
       );
       const item = (await queue.list('pending')).find((i) => i.id === res.data.queueId);
@@ -392,7 +423,10 @@ describe('queue.list / approve / reject', () => {
   });
 
   it('carries the profile snapshot so the UI can show who it is', async () => {
-    await storage.putProfile({ publicId: 'adalovelace', fullName: 'Ada Lovelace' });
+    await storage.putProfile({
+      publicId: 'adalovelace',
+      fullName: 'Ada Lovelace',
+    });
     await invite('mcp');
     expect((await queue.list())[0].profile.fullName).toBe('Ada Lovelace');
   });
@@ -412,7 +446,7 @@ describe('an agent cannot approve its own queue', () => {
     expect(res.ok).toBe(false);
     expect(res.error.code).toBe(ERROR.UNAUTHORIZED);
     expect(res.error.message).toMatch(/Approval is a human action/);
-    expect((await queue.list('pending'))).toHaveLength(1);
+    expect(await queue.list('pending')).toHaveLength(1);
     expect(net.calls).toHaveLength(0);
   });
 
@@ -422,7 +456,7 @@ describe('an agent cannot approve its own queue', () => {
 
     expect(res.ok).toBe(false);
     expect(res.error.code).toBe(ERROR.UNAUTHORIZED);
-    expect((await queue.list('pending'))).toHaveLength(1);
+    expect(await queue.list('pending')).toHaveLength(1);
   });
 
   it('allows queue.approve from mcp once autopilot is on', async () => {
@@ -464,7 +498,9 @@ describe('approve returns before anything is sent', () => {
     const a = await invite('mcp');
     const b = await invite('mcp', { publicId: 'bobbright' });
 
-    const res = await handle(ACTIONS.QUEUE_APPROVE, { ids: [a.data.queueId, b.data.queueId] });
+    const res = await handle(ACTIONS.QUEUE_APPROVE, {
+      ids: [a.data.queueId, b.data.queueId],
+    });
 
     expect(res.data).toEqual({ approved: 2 });
     expect(net.calls).toHaveLength(0);
@@ -494,7 +530,9 @@ describe('approve returns before anything is sent', () => {
   it('the sender picks up everything approved, oldest first, one at a time', async () => {
     const a = await invite('mcp');
     const b = await invite('mcp', { publicId: 'bobbright' });
-    await handle(ACTIONS.QUEUE_APPROVE, { ids: [a.data.queueId, b.data.queueId] });
+    await handle(ACTIONS.QUEUE_APPROVE, {
+      ids: [a.data.queueId, b.data.queueId],
+    });
 
     queueInvite();
     queueInvite();
@@ -508,23 +546,27 @@ describe('approve returns before anything is sent', () => {
   it('an already-approved item is not approved twice', async () => {
     const queued = await invite('mcp');
     await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] });
-    const again = await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] });
+    const again = await handle(ACTIONS.QUEUE_APPROVE, {
+      ids: [queued.data.queueId],
+    });
     expect(again.data).toEqual({ approved: 0 });
   });
 
   it('stops the drain on a stand-down and returns the blocked item to pending', async () => {
     const a = await invite('mcp');
     const b = await invite('mcp', { publicId: 'bobbright' });
-    await handle(ACTIONS.QUEUE_APPROVE, { ids: [a.data.queueId, b.data.queueId] });
+    await handle(ACTIONS.QUEUE_APPROVE, {
+      ids: [a.data.queueId, b.data.queueId],
+    });
 
     net.push(status(429, {}));
     const out = await queue.sendApproved();
 
     expect(out.sent).toBe(0);
     expect(out.remaining).toBe(1);
-    expect((await queue.list('approved'))).toHaveLength(1);
-    expect((await queue.list('pending'))).toHaveLength(1);
-    expect((await queue.list('failed'))).toHaveLength(0);
+    expect(await queue.list('approved')).toHaveLength(1);
+    expect(await queue.list('pending')).toHaveLength(1);
+    expect(await queue.list('failed')).toHaveLength(0);
     expect((await queue.list('pending'))[0].result.error).toMatchObject({
       code: ERROR.RATE_LIMITED,
       message: expect.stringContaining('Rate limited'),
@@ -534,8 +576,9 @@ describe('approve returns before anything is sent', () => {
 
   it('keeps an exhausted quota item pending with the limit message', async () => {
     const queued = await invite('mcp');
+    await setConfig({ dailyVisitCap: 1 });
     const visit = await quota.snapshot('visit');
-    await quota.record('visit', visit.hourlyCap);
+    await quota.record('visit', visit.dailyCap);
     await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] });
 
     const out = await queue.sendApproved();
@@ -545,7 +588,7 @@ describe('approve returns before anything is sent', () => {
     expect(pending).toHaveLength(1);
     expect(pending[0].result.error).toMatchObject({
       code: ERROR.QUOTA_EXCEEDED,
-      message: 'Hourly cap reached for visit (20/hour).',
+      message: 'Daily visit cap reached (1/day).',
     });
   });
 
@@ -631,7 +674,11 @@ describe('a reservation the engine refused itself is handed back', () => {
   });
 
   it('keeps it spent when LinkedIn is the one that refused', async () => {
-    net.push(status(400, { data: { code: 'CANT_RESEND_YET', message: 'Already sent.' } }));
+    net.push(
+      status(400, {
+        data: { code: 'CANT_RESEND_YET', message: 'Already sent.' },
+      }),
+    );
 
     await expect(
       outreach.send(ACTIONS.OUTREACH_INVITE, {

@@ -87,34 +87,27 @@ describe('check / record', () => {
     await quota.record('invite');
     const snap = await quota.snapshot('invite');
     expect(snap.dailyUsed).toBe(1);
-    expect(snap.hourlyUsed).toBe(1);
     expect(snap.dailyCap).toBe(25);
   });
 
   it('throws QUOTA_EXCEEDED at the daily ceiling and emits quota_hit', async () => {
     const sink = vi.fn();
     events.setSink(sink);
-    await setConfig({ accountPreset: 'free', dailyInviteCap: 2, hourlyCap: 50 });
+    await setConfig({ accountPreset: 'free', dailyInviteCap: 2 });
     await quota.record('invite');
     await quota.record('invite');
     const e = await caught(() => quota.check('invite'));
     expect(e.code).toBe(ERROR.QUOTA_EXCEEDED);
     expect(sink).toHaveBeenCalledWith(
-      expect.objectContaining({ event: 'quota_hit', payload: expect.objectContaining({ kind: 'invite' }) }),
+      expect.objectContaining({
+        event: 'quota_hit',
+        payload: expect.objectContaining({ kind: 'invite' }),
+      }),
     );
   });
 
-  it('throws QUOTA_EXCEEDED at the hourly ceiling', async () => {
-    await setConfig({ accountPreset: 'recruiter', hourlyCap: 2, dailyInviteCap: 100 });
-    await quota.record('invite');
-    await quota.record('invite');
-    const e = await caught(() => quota.check('invite'));
-    expect(e.code).toBe(ERROR.QUOTA_EXCEEDED);
-    expect(e.message).toMatch(/hour/i);
-  });
-
   it('counts search results, not search calls, against the 1000/day hard cap', async () => {
-    await setConfig({ accountPreset: 'recruiter', dailySearchCap: 9999, hourlyCap: 50 });
+    await setConfig({ accountPreset: 'recruiter', dailySearchCap: 9999 });
     expect(await quota.dailyCapFor('search')).toBe(1000);
 
     await quota.record('search', 999);
@@ -132,15 +125,6 @@ describe('check / record', () => {
     expect((await quota.snapshot('invite')).dailyUsed).toBe(1);
     at(new Date(2026, 8, 10, 11, 0, 0));
     expect((await quota.snapshot('invite')).dailyUsed).toBe(0);
-  });
-
-  it('rolls the hourly counter over on the hour but keeps the daily one', async () => {
-    await setConfig({ accountPreset: 'free' });
-    await quota.record('invite');
-    at(new Date(2026, 8, 9, 12, 0, 0));
-    const snap = await quota.snapshot('invite');
-    expect(snap.hourlyUsed).toBe(0);
-    expect(snap.dailyUsed).toBe(1);
   });
 });
 
@@ -207,9 +191,7 @@ describe('backoff and challenge', () => {
     const sink = vi.fn();
     events.setSink(sink);
     await quota.noteBackoff(451);
-    expect(sink).toHaveBeenCalledWith(
-      expect.objectContaining({ event: 'challenge_detected' }),
-    );
+    expect(sink).toHaveBeenCalledWith(expect.objectContaining({ event: 'challenge_detected' }));
 
     for (const kind of ['invite', 'message', 'visit', 'search']) {
       const e = await caught(() => quota.check(kind));
@@ -245,13 +227,7 @@ describe('snapshot', () => {
   it('returns the contract RateLimit shape for every bucket', async () => {
     for (const kind of ['invite', 'message', 'visit', 'search']) {
       const snap = await quota.snapshot(kind);
-      expect(Object.keys(snap).sort()).toEqual([
-        'dailyCap',
-        'dailyUsed',
-        'hourlyCap',
-        'hourlyUsed',
-        'nextAllowedAt',
-      ]);
+      expect(Object.keys(snap).sort()).toEqual(['dailyCap', 'dailyUsed', 'nextAllowedAt']);
     }
   });
 

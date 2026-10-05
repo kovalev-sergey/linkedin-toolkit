@@ -150,7 +150,7 @@ sequenceDiagram
 ```
 
 Approval is not the same as sending. Even an approved item waits for a jittered delay, the
-business-hours window, and the hourly and daily caps. A human clicking "approve all" on forty
+business-hours window, and the daily caps. A human clicking "approve all" on forty
 invites does not produce forty invites in a minute; it produces forty invites over the next few
 days.
 

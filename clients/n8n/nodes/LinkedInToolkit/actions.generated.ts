@@ -194,15 +194,6 @@ export const ACTIONS: ActionSpec[] = [
         "default": 0
       },
       {
-        "name": "config_set_hourlyCap",
-        "key": "hourlyCap",
-        "displayName": "Hourly Cap",
-        "required": false,
-        "description": "The Hourly Cap parameter.",
-        "type": "number",
-        "default": 0
-      },
-      {
         "name": "config_set_dailyInviteCap",
         "key": "dailyInviteCap",
         "displayName": "Daily Invite Cap",
@@ -1093,6 +1084,24 @@ export const ACTIONS: ActionSpec[] = [
     ],
     "optional": [
       {
+        "name": "outreach_message_threadId",
+        "key": "threadId",
+        "displayName": "Thread ID",
+        "required": false,
+        "description": "The Thread ID parameter.",
+        "type": "string",
+        "default": ""
+      },
+      {
+        "name": "outreach_message_attachment",
+        "key": "attachment",
+        "displayName": "Attachment",
+        "required": false,
+        "description": "The Attachment parameter. JSON object.",
+        "type": "json",
+        "default": "{}"
+      },
+      {
         "name": "outreach_message_dry_run",
         "key": "dry_run",
         "displayName": "Dry Run",
@@ -1795,7 +1804,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "queue",
     "operation": "list",
     "displayName": "List",
-    "description": "List items in the human-approval queue, optionally filtered by status (\"pending\", \"approved\", \"rejected\", \"sent\" or \"failed\"). In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting, and poll it after linkedin_queue_approve to see what actually sent. Returns queue items with their action, params and target profile; a failed item carries result.error.",
+    "description": "List items in the human-approval queue, optionally filtered by status (\"pending\", \"approved\", \"rejected\" or \"sent\"). In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting, and poll it after linkedin_queue_approve to see what actually sent. Delivery errors return the draft to pending and carry result.error.",
     "write": false,
     "required": [],
     "optional": [
@@ -1804,7 +1813,7 @@ export const ACTIONS: ActionSpec[] = [
         "key": "status",
         "displayName": "Status",
         "required": false,
-        "description": "One of pending, approved, rejected, sent, failed.",
+        "description": "One of pending, approved, rejected, sent.",
         "type": "options",
         "default": "pending",
         "options": [
@@ -1823,10 +1832,6 @@ export const ACTIONS: ActionSpec[] = [
           {
             "name": "Sent",
             "value": "sent"
-          },
-          {
-            "name": "Failed",
-            "value": "failed"
           }
         ]
       }
@@ -1838,7 +1843,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "queue",
     "operation": "approve",
     "displayName": "Approve",
-    "description": "Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved} immediately — the count marked approved, not sent. The extension then sends them one at a time at human pace, which takes seconds to minutes, so watch queue_item_sent events or poll linkedin_queue_list (status \"sent\" or \"failed\") rather than assuming the writes have landed when this returns. An edited note longer than 200 characters is refused here with INVALID_PARAMS and nothing is approved.",
+    "description": "Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved} immediately — the count marked approved, not sent. The extension then sends them one at a time at human pace, which takes seconds to minutes, so watch queue_item_sent and queue_item_blocked events or poll linkedin_queue_list; delivery errors remain attached to pending drafts for retry. An edited note longer than 200 characters is refused here with INVALID_PARAMS and nothing is approved.",
     "write": true,
     "required": [
       {

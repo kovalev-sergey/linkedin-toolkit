@@ -195,7 +195,7 @@ describe('Queue tab', () => {
         result: {
           error: {
             code: 'QUOTA_EXCEEDED',
-            message: 'Hourly cap reached for visit (50/hour).',
+            message: 'Daily visit cap reached (100/day).',
           },
         },
       }),
@@ -205,7 +205,7 @@ describe('Queue tab', () => {
     await queue.mount(host);
 
     expect(host.textContent).toContain('QUOTA_EXCEEDED');
-    expect(host.textContent).toContain('Hourly cap reached for visit (50/hour).');
+    expect(host.textContent).toContain('Daily visit cap reached (100/day).');
     expect(host.querySelector('[data-queue="q1"] button').textContent).toContain('Approve');
   });
 
@@ -216,7 +216,7 @@ describe('Queue tab', () => {
       result: {
         error: {
           code: 'QUOTA_EXCEEDED',
-          message: 'Hourly cap reached for visit (50/hour).',
+          message: 'Daily visit cap reached (100/day).',
         },
       },
     };
@@ -245,7 +245,7 @@ describe('Queue tab', () => {
     await flush(10);
 
     expect(engine.paramsFor(ACTIONS.QUEUE_LIST)).toEqual({ status: 'approved' });
-    expect(host.textContent).toContain('Hourly cap reached for visit (50/hour).');
+    expect(host.textContent).toContain('Daily visit cap reached (100/day).');
     expect(host.querySelector('[data-queue="q1"] button').textContent).toContain('Approve');
   });
 

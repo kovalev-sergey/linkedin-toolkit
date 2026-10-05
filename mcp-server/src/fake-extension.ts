@@ -26,8 +26,6 @@ export type FakeExtensionOptions = {
  * is ever exercised with one.
  */
 export const FAKE_RATE_LIMIT: Record<string, number> = Object.freeze({
-  hourlyUsed: 3,
-  hourlyCap: 20,
   dailyUsed: 12,
   dailyCap: 100,
   nextAllowedAt: 0,

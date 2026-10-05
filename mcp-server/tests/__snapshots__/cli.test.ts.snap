@@ -90,12 +90,12 @@ LinkedIn:  logged in
 Mode:      Copilot (writes need approval)
 Hours:     inside business hours
 
-quota    hourly  daily
--------  ------  -------
-invite   2/20    12/100
-message  0/20    4/150
-visit    5/50    30/500
-search   1/50    40/1000
+quota    daily
+-------  -------
+invite   12/100
+message  4/150
+visit    30/500
+search   40/1000
 
 Queue:     1 pending
 Campaigns: 1 active, 0 paused"

@@ -47,10 +47,10 @@ export const status = {
   autopilot: false,
   businessHours: true,
   quotas: {
-    invite: { hourlyUsed: 2, hourlyCap: 20, dailyUsed: 12, dailyCap: 100, nextAllowedAt: 0 },
-    message: { hourlyUsed: 0, hourlyCap: 20, dailyUsed: 4, dailyCap: 150, nextAllowedAt: 0 },
-    visit: { hourlyUsed: 5, hourlyCap: 50, dailyUsed: 30, dailyCap: 500, nextAllowedAt: 0 },
-    search: { hourlyUsed: 1, hourlyCap: 50, dailyUsed: 40, dailyCap: 1000, nextAllowedAt: 0 },
+    invite: { dailyUsed: 12, dailyCap: 100, nextAllowedAt: 0 },
+    message: { dailyUsed: 4, dailyCap: 150, nextAllowedAt: 0 },
+    visit: { dailyUsed: 30, dailyCap: 500, nextAllowedAt: 0 },
+    search: { dailyUsed: 40, dailyCap: 1000, nextAllowedAt: 0 },
   },
   queue: { pending: 1 },
   campaigns: { active: 1, paused: 0 },
@@ -75,7 +75,14 @@ export const campaign = {
   status: 'active' as const,
   createdAt: 1_700_000_000_000,
   settings: { stopOnReply: true, autopilot: false },
-  stats: { enrolled: 2, sent: 1, accepted: 0, replied: 0, positive: 0, byStep: { '0': { sent: 1 } } },
+  stats: {
+    enrolled: 2,
+    sent: 1,
+    accepted: 0,
+    replied: 0,
+    positive: 0,
+    byStep: { '0': { sent: 1 } },
+  },
 };
 
 export const queueItem = {
@@ -141,7 +148,6 @@ export const message = {
 export const config = {
   minDelayMs: 5000,
   maxDelayMs: 15000,
-  hourlyCap: 20,
   dailyInviteCap: 100,
   dailyMessageCap: 150,
   dailyVisitCap: 500,
@@ -225,7 +231,10 @@ export function defaultHandlers(): Handlers {
     'queue.approve': (params: any) => ({ approved: (params?.ids ?? []).length }),
     'queue.reject': (params: any) => ({ rejected: (params?.ids ?? []).length }),
     'ai.complete': () => ({ output: 'Hi Ada', provider: 'none', model: 'stub' }),
-    'export.csv': () => ({ csv: 'publicId,fullName\nada-lovelace,Ada Lovelace\n', filename: 'p.csv' }),
+    'export.csv': () => ({
+      csv: 'publicId,fullName\nada-lovelace,Ada Lovelace\n',
+      filename: 'p.csv',
+    }),
     'research.resolve': (params: any) => ({
       resolved: (params?.rows ?? []).map((row: any) => ({
         row,
@@ -239,12 +248,24 @@ export function defaultHandlers(): Handlers {
       total: (params?.rows ?? []).length,
       etaMs: 1000,
     }),
-    'research.get': () => ({ jobId: 'job_1', status: 'completed', done: 1, total: 1, packs: [pack] }),
+    'research.get': () => ({
+      jobId: 'job_1',
+      status: 'completed',
+      done: 1,
+      total: 1,
+      packs: [pack],
+    }),
     'sync.pull': () => ({
       profiles: [ada, grace],
       lists: [prospectList],
       listMembers: [
-        { listId: 'list_1', publicId: 'ada-lovelace', addedAt: 1, tags: [], contactedBefore: false },
+        {
+          listId: 'list_1',
+          publicId: 'ada-lovelace',
+          addedAt: 1,
+          tags: [],
+          contactedBefore: false,
+        },
       ],
       campaigns: [campaign],
       enrollments: [

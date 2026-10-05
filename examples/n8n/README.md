@@ -13,7 +13,7 @@ LinkedIn Toolkit webhook ──▶ invite_accepted? ──▶ profile.get ──
 
 Nothing is sent by the workflow. `outreach.message` in Copilot mode returns
 `{ "status": "queued", "queueId": "…" }`, and even after `queue.approve` the extension still
-paces the send: jittered delay, business hours, hourly and daily caps.
+paces the send: jittered delay, business hours, and daily caps.
 
 ## Setup
 

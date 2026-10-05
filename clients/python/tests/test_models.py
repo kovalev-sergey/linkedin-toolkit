@@ -52,8 +52,6 @@ def test_status_nests_rate_limits():
             "businessHours": True,
             "quotas": {
                 "invite": {
-                    "hourlyUsed": 1,
-                    "hourlyCap": 20,
                     "dailyUsed": 3,
                     "dailyCap": 100,
                     "nextAllowedAt": 0,
