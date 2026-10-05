@@ -8,8 +8,6 @@
  * will only run from the popup. See `unfollowCard`.
  */
 
-import { el, render, fmtNumber } from '../../ui/dom.js';
-import { call, onEvent } from '../../ui/api.js';
 import {
   ACTIONS,
   EVENTS,
@@ -21,22 +19,24 @@ import {
   UNFOLLOW_SCOPE_EVERYONE,
   UNFOLLOW_SPEED_FAST,
 } from '../../lib/actions.js';
+import { call, onEvent } from '../../ui/api.js';
 import {
-  card,
-  field,
-  row,
-  input,
-  textarea,
-  select,
-  checkbox,
-  errorLine,
-  statusLine,
-  progressBar,
   busyButton,
   button,
+  card,
+  checkbox,
   confirmDialog,
   empty,
+  errorLine,
+  field,
+  input,
+  progressBar,
+  row,
+  select,
+  statusLine,
+  textarea,
 } from '../../ui/components.js';
+import { el, fmtNumber, render } from '../../ui/dom.js';
 import { downloadCsv, downloadJson, slug, today } from '../../ui/download.js';
 
 export const id = 'extract';
