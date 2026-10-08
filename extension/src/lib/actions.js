@@ -132,8 +132,8 @@ export const EVENTS = Object.freeze({
 export const HARD_CAPS = Object.freeze({
   dailyInviteCap: 100,
   dailyMessageCap: 150,
-  dailyVisitCap: 500,
-  dailySearchCap: 1000,
+  dailyVisitCap: 5000,
+  dailySearchCap: 10000, // default value 1000
 });
 
 /**
