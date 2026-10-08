@@ -27,6 +27,34 @@ export const EducationSchema = z.object({
   end: z.string().optional(),
 });
 
+export const PROFILE_FIELDS = [
+  'publicId',
+  'urn',
+  'url',
+  'firstName',
+  'lastName',
+  'fullName',
+  'headline',
+  'title',
+  'company',
+  'companyUrn',
+  'location',
+  'industry',
+  'photoUrl',
+  'photoDataUrl',
+  'pageText',
+  'summary',
+  'skills',
+  'connectionDegree',
+  'experience',
+  'education',
+  'capturedAt',
+  'source',
+] as const;
+
+export type ProfileField = (typeof PROFILE_FIELDS)[number];
+export const ProfileFieldEnum = z.enum(PROFILE_FIELDS);
+
 export const ProfileSchema = z
   .object({
     publicId: z.string(),
@@ -44,6 +72,7 @@ export const ProfileSchema = z
     photoUrl: z.string().optional(),
     photoDataUrl: z.string().optional(),
     pageText: z.string().optional(),
+    summary: z.string().optional(),
     skills: z.array(z.string()).optional(),
     connectionDegree: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
     experience: z.array(ExperienceSchema).optional(),
@@ -506,9 +535,32 @@ export const PARAMS = {
     count: z.number().int().min(1).max(100).optional(),
   }),
   'profile.get': z.object({
-    url: z.string().optional(),
-    publicId: z.string().optional(),
-    full: z.boolean().optional(),
+    url: z.string().optional().describe('Full LinkedIn profile URL'),
+    publicId: z.string().optional().describe('LinkedIn public identifier / handle'),
+    full: z
+      .boolean()
+      .optional()
+      .describe(
+        'DO NOT SET TRUE unless you specifically need the About summary or full background history. Omit or set false for checking education, headline, title, company, location, or degree — fields projection works with full: false and costs 0 visits.',
+      ),
+    fields: z
+      .array(ProfileFieldEnum)
+      .optional()
+      .describe(
+        'Project only the fields needed to avoid LLM context blowup (e.g. ["fullName","headline","education"]). Works whether full is true or false.',
+      ),
+    maxExperience: z
+      .number()
+      .int()
+      .min(0)
+      .optional()
+      .describe('Limit the number of experience entries returned (e.g. 1 or 2).'),
+    maxEducation: z
+      .number()
+      .int()
+      .min(0)
+      .optional()
+      .describe('Limit the number of education entries returned (e.g. 1 or 2).'),
   }),
   'profile.export': z.object({
     urls: z.array(z.string()),
@@ -880,7 +932,7 @@ export const TOOLS: ToolDef[] = [
     name: 'linkedin_get_profile',
     action: 'profile.get',
     description:
-      'Fetch one profile by URL or publicId. Use it before writing an invite or message so the copy can reference real detail. Returns the Profile; with full=true it also captures the rendered page text, photo and experience/education, which costs one profile visit against the 500/day cap.',
+      'Fetch one profile by URL or publicId. DO NOT set `full: true` unless you strictly need the long About summary or deep background history; basic metadata (education, current title, company, degree, location, headline) is returned with full: false (default) and costs 0 visit quota. Always specify `fields` (e.g. ["fullName","headline","education"]) and/or `maxExperience`/`maxEducation` to avoid bloating context.',
     write: false,
   },
   {

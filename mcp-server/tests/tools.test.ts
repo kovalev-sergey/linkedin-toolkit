@@ -123,6 +123,22 @@ describe('tool calls through the fake extension', () => {
     expect(harness.toolkit.db.counts().profiles).toBe(2);
   });
 
+  it('filters fields and caps experience on linkedin_get_profile', async () => {
+    const result: any = await client.callTool({
+      name: 'linkedin_get_profile',
+      arguments: {
+        publicId: 'adalovelace',
+        fields: ['fullName', 'title', 'company'],
+      },
+    });
+    expect(result.isError).toBeFalsy();
+    const data = payload(result);
+    expect(Object.keys(data).sort()).toEqual(['company', 'fullName', 'title']);
+    expect(data.fullName).toBe('Ada Lovelace');
+    expect(data.headline).toBeUndefined();
+    expect(data.url).toBeUndefined();
+  });
+
   it('forwards dry_run to the extension', async () => {
     const result: any = await client.callTool({
       name: 'linkedin_send_invite',

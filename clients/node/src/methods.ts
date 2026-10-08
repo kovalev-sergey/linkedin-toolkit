@@ -35,7 +35,7 @@ export abstract class GeneratedActions {
     return this.call('search.people', params);
   }
 
-  /** `profile.get` — Fetch one profile by URL or publicId. Use it before writing an invite or message so the copy can reference real detail. Returns the Profile; with full=true it also captures the rendered page text, photo and experience/education, which costs one profile visit against the 500/day cap. */
+  /** `profile.get` — Fetch one profile by URL or publicId. DO NOT set `full: true` unless you strictly need the long About summary or deep background history; basic metadata (education, current title, company, degree, location, headline) is returned with full: false (default) and costs 0 visit quota. Always specify `fields` (e.g. ["fullName","headline","education"]) and/or `maxExperience`/`maxEducation` to avoid bloating context. */
   profileGet(params: ParamsOf<'profile.get'> = {} as ParamsOf<'profile.get'>): Promise<ResultOf<'profile.get'>> {
     return this.call('profile.get', params);
   }

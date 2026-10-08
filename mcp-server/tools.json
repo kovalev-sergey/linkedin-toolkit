@@ -81,19 +81,63 @@
     {
       "name": "linkedin_get_profile",
       "action": "profile.get",
-      "description": "Fetch one profile by URL or publicId. Use it before writing an invite or message so the copy can reference real detail. Returns the Profile; with full=true it also captures the rendered page text, photo and experience/education, which costs one profile visit against the 500/day cap.",
+      "description": "Fetch one profile by URL or publicId. DO NOT set `full: true` unless you strictly need the long About summary or deep background history; basic metadata (education, current title, company, degree, location, headline) is returned with full: false (default) and costs 0 visit quota. Always specify `fields` (e.g. [\"fullName\",\"headline\",\"education\"]) and/or `maxExperience`/`maxEducation` to avoid bloating context.",
       "write": false,
       "inputSchema": {
         "type": "object",
         "properties": {
           "url": {
-            "type": "string"
+            "type": "string",
+            "description": "Full LinkedIn profile URL"
           },
           "publicId": {
-            "type": "string"
+            "type": "string",
+            "description": "LinkedIn public identifier / handle"
           },
           "full": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "DO NOT SET TRUE unless you specifically need the About summary or full background history. Omit or set false for checking education, headline, title, company, location, or degree — fields projection works with full: false and costs 0 visits."
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "publicId",
+                "urn",
+                "url",
+                "firstName",
+                "lastName",
+                "fullName",
+                "headline",
+                "title",
+                "company",
+                "companyUrn",
+                "location",
+                "industry",
+                "photoUrl",
+                "photoDataUrl",
+                "pageText",
+                "summary",
+                "skills",
+                "connectionDegree",
+                "experience",
+                "education",
+                "capturedAt",
+                "source"
+              ]
+            },
+            "description": "Project only the fields needed to avoid LLM context blowup (e.g. [\"fullName\",\"headline\",\"education\"]). Works whether full is true or false."
+          },
+          "maxExperience": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Limit the number of experience entries returned (e.g. 1 or 2)."
+          },
+          "maxEducation": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Limit the number of education entries returned (e.g. 1 or 2)."
           }
         },
         "additionalProperties": false
@@ -453,6 +497,9 @@
                   "type": "string"
                 },
                 "pageText": {
+                  "type": "string"
+                },
+                "summary": {
                   "type": "string"
                 },
                 "skills": {

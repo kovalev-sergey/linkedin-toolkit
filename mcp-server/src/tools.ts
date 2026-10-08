@@ -14,8 +14,8 @@ import {
   type RequestOrigin,
   type ToolDef,
 } from './contract.js';
-import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
+import { registerResources } from './resources.js';
 import type { Toolkit } from './toolkit.js';
 
 export const SERVER_NAME = 'linkedin-toolkit';
@@ -78,6 +78,37 @@ export async function runTool(
       return await toolkit.callFull('status.get', { ...args, verify: true }, { origin });
     case 'linkedin_research_pack':
       return { data: await toolkit.researchPack(args, { origin }) };
+    case 'linkedin_get_profile': {
+      const { fields, maxExperience, maxEducation, ...bridgeArgs } = args as {
+        fields?: string[];
+        maxExperience?: number;
+        maxEducation?: number;
+        [key: string]: unknown;
+      };
+      const res = await toolkit.callFull(tool.action as ActionName, bridgeArgs, { origin });
+      let data = res.data as Record<string, unknown> | null;
+      if (data && typeof data === 'object') {
+        const copy = { ...data };
+        if (typeof maxExperience === 'number' && Array.isArray(copy.experience)) {
+          copy.experience = copy.experience.slice(0, maxExperience);
+        }
+        if (typeof maxEducation === 'number' && Array.isArray(copy.education)) {
+          copy.education = copy.education.slice(0, maxEducation);
+        }
+        if (Array.isArray(fields) && fields.length > 0) {
+          const projected: Record<string, unknown> = {};
+          for (const f of fields) {
+            if (f in copy) {
+              projected[f] = copy[f];
+            }
+          }
+          data = projected;
+        } else {
+          data = copy;
+        }
+      }
+      return { ...res, data };
+    }
     default:
       return await toolkit.callFull(tool.action as ActionName, args, { origin });
   }
@@ -116,6 +147,7 @@ export function createMcpServer(toolkit: Toolkit): McpServer {
       instructions:
         'LinkedIn Toolkit drives the user\'s own logged-in Chrome through a local extension. ' +
         'Call linkedin_get_status first. Reads (search, profile, company, engagers, inbox) are safe. ' +
+        'For linkedin_get_profile: default to full: false (costs 0 visit quota); DO NOT set full: true unless specifically requiring the full About summary; always pass fields to avoid bursting context. ' +
         'Every write is rate-capped by the extension; invites, messages, InMails and comments also ' +
         'queue for human approval instead of sending in the default Copilot mode, while views, ' +
         'follows and likes are metered against the visit bucket and go out directly. Approving is ' +
